@@ -49,6 +49,9 @@ Usage:
   doc-craft detect [--out FILE] [--no-refresh]
   doc-craft generate [--practice ID] [--practices-file FILE] [--dry-run]
   doc-craft run [--practice ID] [--dry-run] [--no-refresh]
+
+Env:
+  MAX_PRACTICES   max new practices per run (0 = unlimited)
 `)
 }
 
@@ -132,6 +135,7 @@ func runGenerate(args []string) int {
 		fmt.Println("No practices to generate.")
 		return 0
 	}
+	selected = limitPractices(selected, s.MaxPractices)
 
 	p := provider.NewDeepSeek(s.AIAPIKey, s.AIBaseURL, s.AIModel, s.AITimeoutSeconds, s.AIMaxRetries)
 	gen := ai.NewDocGenerator(s, p)
@@ -198,6 +202,7 @@ func runPipeline(args []string) int {
 		printJSON(pipeline)
 		return 0
 	}
+	selected = limitPractices(selected, s.MaxPractices)
 	if err := s.RequireAI(); err != nil {
 		log.Println(err)
 		return 1
@@ -255,6 +260,14 @@ func runPipeline(args []string) int {
 		return 1
 	}
 	return 0
+}
+
+func limitPractices(practices []model.Practice, max int) []model.Practice {
+	if max <= 0 || len(practices) <= max {
+		return practices
+	}
+	fmt.Printf("Limiting practices: %d → %d (MAX_PRACTICES)\n", len(practices), max)
+	return practices[:max]
 }
 
 func selectPractices(s *config.Settings, ctx *monitor.RepoContext, detection *model.DetectionResult, practice, practicesFile string) ([]model.Practice, error) {

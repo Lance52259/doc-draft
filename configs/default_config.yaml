@@ -40,6 +40,8 @@ runtime:
   pr_mode: one_per_practice
   pr_update_mode: skip
   log_level: INFO
+  # 单次最多处理多少条新增实践；0 表示不限制。也可用环境变量 MAX_PRACTICES 覆盖
+  max_practices: 0
 
 detection:
   # nested_directory: examples/{service}/{practice}/ 为一条实践（对齐 terraform-provider-huaweicloud）

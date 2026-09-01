@@ -26,8 +26,8 @@ func (o *RepoOperator) ApplyAndPush(repoPath, branchName, baseBranch string, res
 	}
 	_ = run(repoPath, "git", "pull", "origin", baseBranch)
 
-	_ = run(repoPath, "git", "branch", "-D", branchName)
-	if err := run(repoPath, "git", "checkout", "-b", branchName); err != nil {
+	// -B: create or reset branch from current HEAD (avoids noisy "branch not found" from -D)
+	if err := run(repoPath, "git", "checkout", "-B", branchName); err != nil {
 		return "", err
 	}
 

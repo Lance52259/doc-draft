@@ -45,6 +45,8 @@ type Settings struct {
 	PRMode       string
 	PRUpdateMode string
 	LogLevel     string
+	// MaxPractices limits how many new practices are processed per run; 0 = unlimited.
+	MaxPractices int
 
 	SyncedStrategy string
 	Granularity    string
@@ -106,6 +108,7 @@ type fileConfig struct {
 		PRMode       string `yaml:"pr_mode"`
 		PRUpdateMode string `yaml:"pr_update_mode"`
 		LogLevel     string `yaml:"log_level"`
+		MaxPractices int    `yaml:"max_practices"`
 	} `yaml:"runtime"`
 	Detection struct {
 		Granularity    string `yaml:"granularity"`
@@ -261,6 +264,9 @@ func applyFileConfig(s *Settings, fc *fileConfig) {
 	if fc.Runtime.LogLevel != "" {
 		s.LogLevel = fc.Runtime.LogLevel
 	}
+	if fc.Runtime.MaxPractices > 0 {
+		s.MaxPractices = fc.Runtime.MaxPractices
+	}
 	if fc.Detection.SyncedStrategy != "" {
 		s.SyncedStrategy = fc.Detection.SyncedStrategy
 	}
@@ -306,6 +312,11 @@ func applyEnv(s *Settings) {
 	}
 	if v := os.Getenv("DRY_RUN"); v != "" {
 		s.DryRun = parseBool(v)
+	}
+	if v := os.Getenv("MAX_PRACTICES"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil {
+			s.MaxPractices = n
+		}
 	}
 }
 
