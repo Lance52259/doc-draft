@@ -229,7 +229,7 @@ func runPipeline(args []string) int {
 		pipeline.Generated = append(pipeline.Generated, *result)
 
 		branch := branchName(item.PracticeID)
-		title := fmt.Sprintf("docs: sync best practice %s", item.PracticeID)
+		title := item.CommitTitle()
 		body := gitops.SummarizeChanges(result, s.BRepo, detection.BCommit)
 
 		if _, err := op.ApplyAndPush(repoCtx.C.LocalPath, branch, s.CDefaultBranch, result, title, s.DryRun); err != nil {

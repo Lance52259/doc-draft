@@ -1,5 +1,10 @@
 package model
 
+import (
+	"fmt"
+	"strings"
+)
+
 // Practice is one best-practice unit under B repo examples/.
 type Practice struct {
 	PracticeID string            `json:"practice_id"`
@@ -29,6 +34,104 @@ func (p Practice) Service() string {
 		return parts[0]
 	}
 	return ""
+}
+
+// SimpleTitle derives a short English scenario title from the practice directory name.
+// Example: rds/basic_instance → "basic instance".
+// Redundant service-name prefixes (rds_, rds-, "rds ", sfs-turbo_, …) are stripped.
+func (p Practice) SimpleTitle() string {
+	return SimplePracticeTitle(p.Service(), p.Slug())
+}
+
+// CommitTitle returns the fixed commit/PR title format:
+//
+//	docs({service}): support new best practice for {simple title}
+func (p Practice) CommitTitle() string {
+	service := p.Service()
+	if service == "" {
+		service = "unknown"
+	}
+	return fmt.Sprintf("docs(%s): support new best practice for %s", service, p.SimpleTitle())
+}
+
+// SimplePracticeTitle builds a human-readable title from service + slug.
+func SimplePracticeTitle(service, slug string) string {
+	slug = strings.TrimSpace(slug)
+	if slug == "" {
+		return "unknown"
+	}
+
+	trimmed := stripServicePrefix(slug, service)
+	title := strings.ReplaceAll(trimmed, "-", " ")
+	title = strings.ReplaceAll(title, "_", " ")
+	title = collapseSpaces(title)
+	title = stripServiceWordPrefix(title, service)
+	title = collapseSpaces(title)
+	if title == "" {
+		title = strings.ReplaceAll(strings.ReplaceAll(slug, "-", " "), "_", " ")
+		title = collapseSpaces(title)
+	}
+	return title
+}
+
+func stripServicePrefix(slug, service string) string {
+	if service == "" {
+		return slug
+	}
+	variants := serviceNameVariants(service)
+	lower := strings.ToLower(slug)
+	for _, v := range variants {
+		for _, sep := range []string{"_", "-"} {
+			prefix := strings.ToLower(v + sep)
+			if strings.HasPrefix(lower, prefix) && len(slug) > len(prefix) {
+				return slug[len(prefix):]
+			}
+		}
+	}
+	return slug
+}
+
+func stripServiceWordPrefix(title, service string) string {
+	if service == "" || title == "" {
+		return title
+	}
+	for _, v := range serviceNameVariants(service) {
+		words := collapseSpaces(strings.ReplaceAll(strings.ReplaceAll(v, "-", " "), "_", " "))
+		if words == "" {
+			continue
+		}
+		prefix := strings.ToLower(words) + " "
+		if strings.HasPrefix(strings.ToLower(title), prefix) {
+			return strings.TrimSpace(title[len(prefix):])
+		}
+	}
+	return title
+}
+
+func serviceNameVariants(service string) []string {
+	seen := map[string]struct{}{}
+	var out []string
+	add := func(s string) {
+		s = strings.TrimSpace(s)
+		if s == "" {
+			return
+		}
+		key := strings.ToLower(s)
+		if _, ok := seen[key]; ok {
+			return
+		}
+		seen[key] = struct{}{}
+		out = append(out, s)
+	}
+	add(service)
+	add(strings.ReplaceAll(service, "-", "_"))
+	add(strings.ReplaceAll(service, "_", "-"))
+	add(strings.ReplaceAll(strings.ReplaceAll(service, "-", ""), "_", ""))
+	return out
+}
+
+func collapseSpaces(s string) string {
+	return strings.Join(strings.Fields(s), " ")
 }
 
 func splitPath(p string) []string {
