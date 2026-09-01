@@ -1,13 +1,12 @@
-# Map B practice paths to hcbp-demo (C) documentation targets.
-# practice_id uses B-relative path, e.g. examples/ecs/basic
+# Map B (terraform-provider-huaweicloud/examples) → C (hcbp-demo docs).
+# C 仓服务目录按华为云产品命名，不等于 examples 目录名照抄。
 
 defaults:
   skill_id: best-practice-doc
   template: best_practice_template.md
-  # {service} = path segment after examples/; {practice_slug} = last segment
+  # {service}/{practice_slug} 使用映射后的 C 仓规范名
   target_path_pattern: "docs/zh-cn/best-practices/{service}/{practice_slug}.md"
   action: create
-  # Companion updates required by Skill (index / SUMMARY / README) — AI must include when needed
   also_update:
     - docs/zh-cn/best-practices/{service}/index.md
     - docs/zh-cn/SUMMARY.md
@@ -15,5 +14,50 @@ defaults:
     - docs/zh-cn/best-practices/{service}/index.md
     - docs/zh-cn/best-practices/README.md
     - docs/zh-cn/SUMMARY.md
+
+# B examples 一级目录 → C docs/zh-cn/best-practices 目录
+service_aliases:
+  antiddos: anti-ddos
+  # 下列通常同名，可省略；保留便于显式文档化
+  # aom: aom
+  # apig: apig
+  identitycenter: identity-center
+  identity_center: identity-center
+  sfsturbo: sfs-turbo
+  sfs_turbo: sfs-turbo
+  functiongraph: fgs
+  fgs: fgs
+
+# 可选：B practice 路径 → C 文档文件名（不含 .md）
+# 支持键：完整 practice_id、service/slug、或仅 slug
+practice_aliases:
+  examples/bms/bms-instance: basic
+  bms/bms-instance: basic
+  examples/bms/bms-reset-password: reset_password
+  bms/bms-reset-password: reset_password
+  examples/cbh/basic-instance: single_instance
+  cbh/basic-instance: single_instance
+  examples/cbr/vault-server: server_vault
+  cbr/vault-server: server_vault
+  examples/cbr/vault-turbo: sfs_turbo_vault
+  cbr/vault-turbo: sfs_turbo_vault
+  examples/cbr/vault-volume: disk_vault
+  cbr/vault-volume: disk_vault
+  examples/css/css-cluster: cluster
+  css/css-cluster: cluster
+  examples/apig/api-custom-authorizer-with-functiongraph: function_authorizer
+  apig/api-custom-authorizer-with-functiongraph: function_authorizer
+  examples/aom/alarm-rule/distribute-alarm: distribute_alarm
+  aom/alarm-rule/distribute-alarm: distribute_alarm
+  examples/aom/alarm-rule/prevent-elb-alarm-storm: prevent_elb_alarm_storm
+  aom/alarm-rule/prevent-elb-alarm-storm: prevent_elb_alarm_storm
+  examples/cce/kubenetes/authenticate-with-config: kubernetes_authentication_with_config
+  cce/kubenetes/authenticate-with-config: kubernetes_authentication_with_config
+  examples/cce/kubenetes/namespace: kubernetes_namespace
+  cce/kubenetes/namespace: kubernetes_namespace
+  examples/cce/kubenetes/pvc-with-existing-obs-bucket: kubernetes_pvc_with_existing_obs
+  cce/kubenetes/pvc-with-existing-obs-bucket: kubernetes_pvc_with_existing_obs
+  examples/cce/kubenetes/pvc-with-new-obs-bucket: kubernetes_pvc_with_new_obs
+  cce/kubenetes/pvc-with-new-obs-bucket: kubernetes_pvc_with_new_obs
 
 rules: []

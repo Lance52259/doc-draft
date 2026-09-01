@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/Lance52259/doc-draft/internal/config"
+	"github.com/Lance52259/doc-draft/internal/mapping"
 	"github.com/Lance52259/doc-draft/internal/model"
 )
 
@@ -15,6 +16,8 @@ import (
 // granularity:
 //   - "directory": first-level dirs are practices
 //   - "nested_directory" (default for hcbp): examples/{service}/{practice}/
+//     If a practice dir only contains nested leaf dirs with .tf, those leaves are enumerated
+//     (e.g. examples/aom/alarm-rule/distribute-alarm).
 func EnumeratePractices(examplesRoot, examplesRel string, ignoreNames []string, granularity string) ([]model.Practice, error) {
 	ignore := map[string]struct{}{}
 	for _, n := range ignoreNames {
@@ -51,8 +54,9 @@ func EnumeratePractices(examplesRoot, examplesRel string, ignoreNames []string, 
 					continue
 				}
 				hasNested = true
-				rel := strings.TrimRight(examplesRel, "/") + "/" + name + "/" + subName
-				practices = append(practices, buildPractice(filepath.Join(serviceDir, subName), rel, subName))
+				practiceDir := filepath.Join(serviceDir, subName)
+				baseRel := strings.TrimRight(examplesRel, "/") + "/" + name + "/" + subName
+				practices = append(practices, expandPracticeOrLeaves(practiceDir, baseRel, subName, ignore)...)
 			}
 			// flat tf under service dir (no nested practice folders) → treat service as one practice
 			if !hasNested {
@@ -69,6 +73,52 @@ func EnumeratePractices(examplesRoot, examplesRel string, ignoreNames []string, 
 		return practices[i].PracticeID < practices[j].PracticeID
 	})
 	return practices, nil
+}
+
+// expandPracticeOrLeaves emits nested leaf practices when the directory is a container
+// (child dirs with Terraform, little/no .tf at this level).
+func expandPracticeOrLeaves(dir, rel, name string, ignore map[string]struct{}) []model.Practice {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return []model.Practice{buildPractice(dir, rel, name)}
+	}
+	var leafDirs []os.DirEntry
+	for _, e := range entries {
+		n := e.Name()
+		if _, ok := ignore[n]; ok || strings.HasPrefix(n, ".") || !e.IsDir() {
+			continue
+		}
+		child := filepath.Join(dir, n)
+		if hasTerraformFiles(child) {
+			leafDirs = append(leafDirs, e)
+		}
+	}
+	if len(leafDirs) > 0 && !hasTerraformFiles(dir) {
+		out := make([]model.Practice, 0, len(leafDirs))
+		for _, e := range leafDirs {
+			childRel := rel + "/" + e.Name()
+			out = append(out, buildPractice(filepath.Join(dir, e.Name()), childRel, e.Name()))
+		}
+		return out
+	}
+	return []model.Practice{buildPractice(dir, rel, name)}
+}
+
+func hasTerraformFiles(dir string) bool {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return false
+	}
+	for _, e := range entries {
+		if e.IsDir() {
+			continue
+		}
+		n := strings.ToLower(e.Name())
+		if strings.HasSuffix(n, ".tf") || strings.HasSuffix(n, ".tf.json") {
+			return true
+		}
+	}
+	return false
 }
 
 func buildPractice(dir, rel, name string) model.Practice {
@@ -169,24 +219,11 @@ func addManifestItems(ids map[string]struct{}, raw any) {
 	}
 }
 
-func inferSyncedByDocs(cRoot, docsRoot string, practices []model.Practice) map[string]struct{} {
+func inferSyncedByDocs(resolver *mapping.Resolver, practices []model.Practice) map[string]struct{} {
 	synced := map[string]struct{}{}
-	docs := filepath.Join(cRoot, docsRoot)
 	for _, p := range practices {
-		service := p.Service()
-		candidates := []string{
-			filepath.Join(docs, p.Slug()+".md"),
-		}
-		if service != "" {
-			candidates = append(candidates,
-				filepath.Join(docs, service, p.Slug()+".md"),
-			)
-		}
-		for _, candidate := range candidates {
-			if _, err := os.Stat(candidate); err == nil {
-				synced[p.PracticeID] = struct{}{}
-				break
-			}
+		if resolver.IsSynced(p) {
+			synced[p.PracticeID] = struct{}{}
 		}
 	}
 	return synced
@@ -212,7 +249,12 @@ func (d *ChangeDetector) Detect(ctx *RepoContext) (*model.DetectionResult, error
 	if err != nil {
 		return nil, err
 	}
-	pathIDs := inferSyncedByDocs(ctx.C.LocalPath, d.Settings.CDocsRoot, practices)
+
+	resolver := mapping.NewResolver(d.Settings.Mapping, d.Settings.CDocsRoot)
+	if err := resolver.IndexDocsRoot(ctx.C.LocalPath); err != nil {
+		return nil, err
+	}
+	pathIDs := inferSyncedByDocs(resolver, practices)
 
 	synced := map[string]struct{}{}
 	switch d.Settings.SyncedStrategy {

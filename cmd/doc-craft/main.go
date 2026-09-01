@@ -14,6 +14,7 @@ import (
 	"github.com/Lance52259/doc-draft/internal/ai/provider"
 	"github.com/Lance52259/doc-draft/internal/config"
 	"github.com/Lance52259/doc-draft/internal/gitops"
+	"github.com/Lance52259/doc-draft/internal/mapping"
 	"github.com/Lance52259/doc-draft/internal/model"
 	"github.com/Lance52259/doc-draft/internal/monitor"
 )
@@ -229,7 +230,7 @@ func runPipeline(args []string) int {
 		pipeline.Generated = append(pipeline.Generated, *result)
 
 		branch := branchName(item.PracticeID)
-		title := item.CommitTitle()
+		title := commitTitle(s, item)
 		tpl, _ := gitops.LoadPRBodyTemplate(s.RepoRoot)
 		body := gitops.BuildPRBody(gitops.PRBodyInput{
 			Practice: item,
@@ -332,6 +333,22 @@ func branchName(practiceID string) string {
 		return name[:200]
 	}
 	return name
+}
+
+func commitTitle(s *config.Settings, p model.Practice) string {
+	doc := mapping.NewResolver(s.Mapping, s.CDocsRoot).Resolve(p)
+	service := doc.Service
+	if service == "" {
+		service = p.Service()
+	}
+	if service == "" {
+		service = "unknown"
+	}
+	slug := doc.Slug
+	if slug == "" {
+		slug = p.Slug()
+	}
+	return fmt.Sprintf("docs(%s): support new best practice for %s", service, model.SimplePracticeTitle(service, slug))
 }
 
 func contains(list []string, v string) bool {

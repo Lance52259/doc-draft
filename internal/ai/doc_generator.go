@@ -11,6 +11,7 @@ import (
 
 	"github.com/Lance52259/doc-draft/internal/ai/provider"
 	"github.com/Lance52259/doc-draft/internal/config"
+	"github.com/Lance52259/doc-draft/internal/mapping"
 	"github.com/Lance52259/doc-draft/internal/model"
 )
 
@@ -64,11 +65,17 @@ func ResolveTargetPath(settings *config.Settings, practice model.Practice) (targ
 			break
 		}
 	}
-	service := practice.Service()
+	resolver := mapping.NewResolver(settings.Mapping, settings.CDocsRoot)
+	doc := resolver.Resolve(practice)
+	service := doc.Service
+	slug := doc.Slug
 	if service == "" {
 		service = practice.Slug()
 	}
-	target = strings.ReplaceAll(pattern, "{practice_slug}", practice.Slug())
+	if slug == "" {
+		slug = practice.Slug()
+	}
+	target = strings.ReplaceAll(pattern, "{practice_slug}", slug)
 	target = strings.ReplaceAll(target, "{service}", service)
 	target = strings.ReplaceAll(target, "{practice_id}", practice.PracticeID)
 	return target, skillID, template

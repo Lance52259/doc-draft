@@ -55,8 +55,10 @@ type Settings struct {
 }
 
 type MappingConfig struct {
-	Defaults MappingDefaults `yaml:"defaults"`
-	Rules    []MappingRule   `yaml:"rules"`
+	Defaults        MappingDefaults   `yaml:"defaults"`
+	Rules           []MappingRule     `yaml:"rules"`
+	ServiceAliases  map[string]string `yaml:"service_aliases"`
+	PracticeAliases map[string]string `yaml:"practice_aliases"`
 }
 
 type MappingDefaults struct {

@@ -34,17 +34,26 @@ func TestValidatePaths(t *testing.T) {
 
 func TestResolveTargetPath(t *testing.T) {
 	s := &config.Settings{
-		SkillID: "best-practice-doc",
-		Mapping: config.MappingConfig{Defaults: config.MappingDefaults{
-			TargetPathPattern: "docs/zh-cn/best-practices/{service}/{practice_slug}.md",
-			SkillID:           "best-practice-doc",
-			Template:          "best_practice_template.md",
-		}},
+		SkillID:   "best-practice-doc",
+		CDocsRoot: "docs/zh-cn/best-practices",
+		Mapping: config.MappingConfig{
+			Defaults: config.MappingDefaults{
+				TargetPathPattern: "docs/zh-cn/best-practices/{service}/{practice_slug}.md",
+				SkillID:           "best-practice-doc",
+				Template:          "best_practice_template.md",
+			},
+			ServiceAliases: map[string]string{"antiddos": "anti-ddos"},
+		},
 	}
 	p := model.Practice{PracticeID: "examples/ecs/foo-bar", SourcePath: "examples/ecs/foo-bar"}
 	path, skill, template := ai.ResolveTargetPath(s, p)
-	if path != "docs/zh-cn/best-practices/ecs/foo-bar.md" || skill != "best-practice-doc" || template == "" {
+	if path != "docs/zh-cn/best-practices/ecs/foo_bar.md" || skill != "best-practice-doc" || template == "" {
 		t.Fatalf("%s %s %s", path, skill, template)
+	}
+	p2 := model.Practice{PracticeID: "examples/antiddos/basic"}
+	path2, _, _ := ai.ResolveTargetPath(s, p2)
+	if path2 != "docs/zh-cn/best-practices/anti-ddos/basic.md" {
+		t.Fatalf("antiddos path=%s", path2)
 	}
 }
 

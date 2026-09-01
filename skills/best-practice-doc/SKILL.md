@@ -1,7 +1,7 @@
 ---
 name: best-practice-doc
 description: 从 terraform-provider-huaweicloud/examples 生成文档并 PR 到 Lance52259/hcbp-demo
-version: "0.2.2"
+version: "0.2.3"
 source_repo: https://github.com/huaweicloud/terraform-provider-huaweicloud
 source_repo_slug: huaweicloud/terraform-provider-huaweicloud
 source_examples: https://github.com/huaweicloud/terraform-provider-huaweicloud/tree/master/examples
@@ -35,8 +35,8 @@ target_default_branch: master
 
 约定：
 
-- `{service}`：华为云服务简称，**全小写**（如 `ecs`、`vpc`、`sfs-turbo`），与现有目录名一致；新服务按华为云简称新建目录。
-- `{practice}`：实践文件名（无 `.md`），通常与源 `examples/{service}/{practice}/` 目录名一致，或与现有文档命名风格一致（如 `simple_instance`）。
+- `{service}`：华为云服务简称，**全小写**（如 `ecs`、`vpc`、`anti-ddos`、`sfs-turbo`），与 C 仓现有目录名一致；**不等于** B 仓 `examples/` 一级目录照抄（如 B 的 `antiddos` → C 的 `anti-ddos`，见 `configs/practice_mapping.yaml` 的 `service_aliases`）。
+- `{practice}`：实践文件名（无 `.md`），优先对齐 C 仓既有风格（下划线、产品语义名）；可用 `practice_aliases` 覆盖。detect 时会按别名 + 去分隔符模糊匹配判断是否已对接。
 - 正文结构、固定标题 **不得自行增减章节标题**；严格按模板章节顺序。
 
 ### B. 服务目录已存在时还需
