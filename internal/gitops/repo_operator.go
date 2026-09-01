@@ -1,7 +1,6 @@
 package gitops
 
 import (
-	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -96,29 +95,4 @@ func runOut(dir, name string, args ...string) (string, error) {
 	cmd.Dir = dir
 	out, err := cmd.Output()
 	return string(out), err
-}
-
-// SummarizeChanges builds a PR body.
-func SummarizeChanges(result *model.GenerateResult, bRepo, bSHA string) string {
-	if bSHA == "" {
-		bSHA = "unknown"
-	}
-	var b strings.Builder
-	fmt.Fprintf(&b, "## Summary\n")
-	fmt.Fprintf(&b, "- 来源：`%s`@%s / `%s`\n", bRepo, bSHA, result.PracticeID)
-	fmt.Fprintf(&b, "- 类型：最佳实践文档同步（doc-craft / DeepSeek 自动生成）\n\n")
-	fmt.Fprintf(&b, "## 变更说明\n")
-	summary := result.Summary
-	if summary == "" {
-		summary = "(无摘要)"
-	}
-	fmt.Fprintf(&b, "%s\n\n## 文件\n", summary)
-	for _, f := range result.Files {
-		fmt.Fprintf(&b, "- `%s` `%s`\n", f.Action, f.Path)
-	}
-	fmt.Fprintf(&b, "\n## 人工检查清单\n")
-	fmt.Fprintf(&b, "- [ ] 路径与 C 仓信息架构一致\n")
-	fmt.Fprintf(&b, "- [ ] 代码块/命令可运行或已标明环境\n")
-	fmt.Fprintf(&b, "- [ ] 无密钥或敏感信息\n")
-	return b.String()
 }

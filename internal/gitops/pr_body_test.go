@@ -1,0 +1,60 @@
+package gitops_test
+
+import (
+	"strings"
+	"testing"
+
+	"github.com/Lance52259/doc-draft/internal/gitops"
+	"github.com/Lance52259/doc-draft/internal/model"
+)
+
+func TestBuildPRBody(t *testing.T) {
+	p := model.Practice{
+		PracticeID: "examples/rds/basic_instance",
+		SourcePath: "examples/rds/basic_instance",
+	}
+	result := &model.GenerateResult{
+		PracticeID: p.PracticeID,
+		Summary:    "补充 RDS 基础实例文档",
+		Files: []model.DocFileChange{
+			{Path: "docs/zh-cn/best-practices/rds/basic_instance.md", Content: "# x\n", Action: "create"},
+			{Path: "docs/zh-cn/SUMMARY.md", Content: "...", Action: "update"},
+		},
+	}
+	body := gitops.BuildPRBody(gitops.PRBodyInput{
+		Practice: p,
+		Result:   result,
+		BRepo:    "huaweicloud/terraform-provider-huaweicloud",
+		BSHA:     "abc1234",
+		SkillID:  "best-practice-doc",
+	})
+	needles := []string{
+		"| 服务 | `rds` |",
+		"| 实践 | `basic instance` |",
+		"`examples/rds/basic_instance`",
+		"huaweicloud/terraform-provider-huaweicloud@abc1234",
+		"补充 RDS 基础实例文档",
+		"`create` `docs/zh-cn/best-practices/rds/basic_instance.md`",
+		"## Review checklist",
+		"docs(rds): support new best practice for",
+	}
+	for _, n := range needles {
+		if !strings.Contains(body, n) {
+			t.Fatalf("missing %q in body:\n%s", n, body)
+		}
+	}
+}
+
+func TestSummarizeChanges(t *testing.T) {
+	result := &model.GenerateResult{
+		PracticeID: "examples/foo",
+		Summary:    "新增 foo 文档",
+		Files: []model.DocFileChange{
+			{Path: "docs/best-practices/foo.md", Content: "# foo\n", Action: "create"},
+		},
+	}
+	body := gitops.SummarizeChanges(result, "acme/examples", "abc")
+	if !strings.Contains(body, "examples/foo") || !strings.Contains(body, "docs/best-practices/foo.md") {
+		t.Fatalf("%s", body)
+	}
+}

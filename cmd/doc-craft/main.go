@@ -230,7 +230,15 @@ func runPipeline(args []string) int {
 
 		branch := branchName(item.PracticeID)
 		title := item.CommitTitle()
-		body := gitops.SummarizeChanges(result, s.BRepo, detection.BCommit)
+		tpl, _ := gitops.LoadPRBodyTemplate(s.RepoRoot)
+		body := gitops.BuildPRBody(gitops.PRBodyInput{
+			Practice: item,
+			Result:   result,
+			BRepo:    s.BRepo,
+			BSHA:     detection.BCommit,
+			SkillID:  s.SkillID,
+			Template: tpl,
+		})
 
 		if _, err := op.ApplyAndPush(repoCtx.C.LocalPath, branch, s.CDefaultBranch, result, title, s.DryRun); err != nil {
 			pipeline.Errors = append(pipeline.Errors, fmt.Sprintf("%s push: %v", item.PracticeID, err))
