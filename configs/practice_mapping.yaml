@@ -1,0 +1,19 @@
+# Map B practice paths to hcbp-demo (C) documentation targets.
+# practice_id uses B-relative path, e.g. examples/ecs/basic
+
+defaults:
+  skill_id: best-practice-doc
+  template: best_practice_template.md
+  # {service} = path segment after examples/; {practice_slug} = last segment
+  target_path_pattern: "docs/zh-cn/best-practices/{service}/{practice_slug}.md"
+  action: create
+  # Companion updates required by Skill (index / SUMMARY / README) — AI must include when needed
+  also_update:
+    - docs/zh-cn/best-practices/{service}/index.md
+    - docs/zh-cn/SUMMARY.md
+  also_update_when_new_service:
+    - docs/zh-cn/best-practices/{service}/index.md
+    - docs/zh-cn/best-practices/README.md
+    - docs/zh-cn/SUMMARY.md
+
+rules: []

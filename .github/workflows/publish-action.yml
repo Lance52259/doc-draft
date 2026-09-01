@@ -1,0 +1,12 @@
+# Placeholder: publish composite/action to Marketplace later (Phase 5+).
+# Disabled by default — enable when packaging for reuse across orgs.
+name: publish-action
+
+on:
+  workflow_dispatch:
+
+jobs:
+  noop:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "Marketplace publish not enabled in MVP"

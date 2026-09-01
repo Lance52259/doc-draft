@@ -1,0 +1,42 @@
+name: doc-craft
+description: Detect new best practices and open AI-generated doc PRs (DeepSeek / Go)
+inputs:
+  mode:
+    description: "run | detect | generate"
+    required: false
+    default: run
+  practice:
+    description: Optional single practice_id
+    required: false
+    default: ""
+  dry_run:
+    description: "true | false"
+    required: false
+    default: "false"
+runs:
+  using: composite
+  steps:
+    - name: Setup Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: "1.22"
+        cache-dependency-path: go.sum
+    - name: Build
+      shell: bash
+      working-directory: ${{ github.action_path }}/../../..
+      run: go build -o bin/doc-craft ./cmd/doc-craft
+    - name: Run
+      shell: bash
+      working-directory: ${{ github.action_path }}/../../..
+      env:
+        DRY_RUN: ${{ inputs.dry_run }}
+      run: |
+        set -euo pipefail
+        ARGS=(${{ inputs.mode }})
+        if [[ -n "${{ inputs.practice }}" ]]; then
+          ARGS+=(--practice "${{ inputs.practice }}")
+        fi
+        if [[ "${{ inputs.dry_run }}" == "true" ]]; then
+          ARGS+=(--dry-run=true)
+        fi
+        ./bin/doc-craft "${ARGS[@]}"

@@ -1,0 +1,48 @@
+# Default runtime configuration for doc-craft (Go).
+# Environment variables / Secrets override these values.
+
+repos:
+  b:
+    # 源仓（B）：https://github.com/huaweicloud/terraform-provider-huaweicloud
+    repo: huaweicloud/terraform-provider-huaweicloud
+    examples_path: examples
+    default_branch: master
+    ignore_names:
+      - README.md
+      - README
+      - .gitkeep
+  c:
+    # PR 目标仓（C）：https://github.com/Lance52259/hcbp-demo
+    repo: Lance52259/hcbp-demo
+    docs_root: docs/zh-cn/best-practices
+    default_branch: master
+    synced_manifest: synced-practices.json
+    path_allowlist:
+      - docs/zh-cn/
+
+ai:
+  provider: openai_compatible
+  base_url: https://api.deepseek.com
+  model: deepseek-chat
+  timeout_seconds: 120
+  max_retries: 2
+  response_format_json: true
+  max_context_chars: 48000
+
+skill:
+  id: best-practice-doc
+  root: skills
+
+runtime:
+  dry_run: false
+  work_dir: .work
+  state_path: state/state.json
+  pr_mode: one_per_practice
+  pr_update_mode: skip
+  log_level: INFO
+
+detection:
+  # nested_directory: examples/{service}/{practice}/ 为一条实践（对齐 terraform-provider-huaweicloud）
+  # directory: examples 下一层目录为一条实践
+  granularity: nested_directory
+  synced_strategy: hybrid

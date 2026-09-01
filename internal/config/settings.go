@@ -1,0 +1,362 @@
+package config
+
+import (
+	"fmt"
+	"os"
+	"path/filepath"
+	"strconv"
+	"strings"
+
+	"github.com/joho/godotenv"
+	"gopkg.in/yaml.v3"
+)
+
+// Settings holds runtime configuration. Env/Secrets override YAML defaults.
+type Settings struct {
+	RepoRoot string
+
+	BRepo           string
+	BRepoToken      string
+	BExamplesPath   string
+	BDefaultBranch  string
+	IgnoreNames     []string
+
+	CRepo            string
+	CRepoToken       string
+	CDocsRoot        string
+	CDefaultBranch   string
+	CSyncedManifest  string
+	PathAllowlist    []string
+
+	AIBaseURL           string
+	AIAPIKey            string
+	AIModel             string
+	AITimeoutSeconds    int
+	AIMaxRetries        int
+	MaxContextChars     int
+	ResponseFormatJSON  bool
+
+	SkillID   string
+	SkillRoot string
+
+	DryRun       bool
+	StatePath    string
+	WorkDir      string
+	PRMode       string
+	PRUpdateMode string
+	LogLevel     string
+
+	SyncedStrategy string
+	Granularity    string
+
+	Mapping MappingConfig
+}
+
+type MappingConfig struct {
+	Defaults MappingDefaults `yaml:"defaults"`
+	Rules    []MappingRule   `yaml:"rules"`
+}
+
+type MappingDefaults struct {
+	SkillID            string `yaml:"skill_id"`
+	Template           string `yaml:"template"`
+	TargetPathPattern  string `yaml:"target_path_pattern"`
+	Action             string `yaml:"action"`
+}
+
+type MappingRule struct {
+	Match              string `yaml:"match"`
+	SkillID            string `yaml:"skill_id"`
+	Template           string `yaml:"template"`
+	TargetPathPattern  string `yaml:"target_path_pattern"`
+}
+
+type fileConfig struct {
+	Repos struct {
+		B struct {
+			Repo          string   `yaml:"repo"`
+			ExamplesPath  string   `yaml:"examples_path"`
+			DefaultBranch string   `yaml:"default_branch"`
+			IgnoreNames   []string `yaml:"ignore_names"`
+		} `yaml:"b"`
+		C struct {
+			Repo            string   `yaml:"repo"`
+			DocsRoot        string   `yaml:"docs_root"`
+			DefaultBranch   string   `yaml:"default_branch"`
+			SyncedManifest  string   `yaml:"synced_manifest"`
+			PathAllowlist   []string `yaml:"path_allowlist"`
+		} `yaml:"c"`
+	} `yaml:"repos"`
+	AI struct {
+		BaseURL            string `yaml:"base_url"`
+		Model              string `yaml:"model"`
+		TimeoutSeconds     int    `yaml:"timeout_seconds"`
+		MaxRetries         int    `yaml:"max_retries"`
+		ResponseFormatJSON bool   `yaml:"response_format_json"`
+		MaxContextChars    int    `yaml:"max_context_chars"`
+	} `yaml:"ai"`
+	Skill struct {
+		ID   string `yaml:"id"`
+		Root string `yaml:"root"`
+	} `yaml:"skill"`
+	Runtime struct {
+		DryRun       bool   `yaml:"dry_run"`
+		WorkDir      string `yaml:"work_dir"`
+		StatePath    string `yaml:"state_path"`
+		PRMode       string `yaml:"pr_mode"`
+		PRUpdateMode string `yaml:"pr_update_mode"`
+		LogLevel     string `yaml:"log_level"`
+	} `yaml:"runtime"`
+	Detection struct {
+		Granularity    string `yaml:"granularity"`
+		SyncedStrategy string `yaml:"synced_strategy"`
+	} `yaml:"detection"`
+}
+
+// FindRepoRoot walks up from cwd looking for go.mod or configs/default_config.yaml.
+func FindRepoRoot() (string, error) {
+	wd, err := os.Getwd()
+	if err != nil {
+		return "", err
+	}
+	dir := wd
+	for {
+		if fileExists(filepath.Join(dir, "go.mod")) || fileExists(filepath.Join(dir, "configs", "default_config.yaml")) {
+			return dir, nil
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			return wd, nil
+		}
+		dir = parent
+	}
+}
+
+func fileExists(path string) bool {
+	_, err := os.Stat(path)
+	return err == nil
+}
+
+// Load reads .env (optional), YAML defaults, then applies environment overrides.
+func Load() (*Settings, error) {
+	root, err := FindRepoRoot()
+	if err != nil {
+		return nil, err
+	}
+	_ = godotenv.Load(filepath.Join(root, ".env"))
+
+	s := &Settings{
+		RepoRoot:           root,
+		BRepo:              "huaweicloud/terraform-provider-huaweicloud",
+		BExamplesPath:      "examples",
+		BDefaultBranch:     "master",
+		IgnoreNames:        []string{"README.md", "README", ".gitkeep"},
+		CDocsRoot:          "docs/zh-cn/best-practices",
+		CDefaultBranch:     "master",
+		CRepo:              "Lance52259/hcbp-demo",
+		CSyncedManifest:    "synced-practices.json",
+		PathAllowlist:      []string{"docs/zh-cn/"},
+		AIBaseURL:          "https://api.deepseek.com",
+		AIModel:            "deepseek-chat",
+		AITimeoutSeconds:   120,
+		AIMaxRetries:       2,
+		MaxContextChars:    48000,
+		ResponseFormatJSON: true,
+		SkillID:            "best-practice-doc",
+		SkillRoot:          "skills",
+		StatePath:          "state/state.json",
+		WorkDir:            ".work",
+		PRMode:             "one_per_practice",
+		PRUpdateMode:       "skip",
+		LogLevel:           "INFO",
+		SyncedStrategy:     "hybrid",
+		Granularity:        "nested_directory",
+	}
+
+	cfgPath := filepath.Join(root, "configs", "default_config.yaml")
+	if data, err := os.ReadFile(cfgPath); err == nil {
+		var fc fileConfig
+		if err := yaml.Unmarshal(data, &fc); err != nil {
+			return nil, fmt.Errorf("parse %s: %w", cfgPath, err)
+		}
+		applyFileConfig(s, &fc)
+	}
+
+	mapPath := filepath.Join(root, "configs", "practice_mapping.yaml")
+	if data, err := os.ReadFile(mapPath); err == nil {
+		var mc MappingConfig
+		if err := yaml.Unmarshal(data, &mc); err != nil {
+			return nil, fmt.Errorf("parse %s: %w", mapPath, err)
+		}
+		s.Mapping = mc
+	}
+
+	applyEnv(s)
+	return s, nil
+}
+
+func applyFileConfig(s *Settings, fc *fileConfig) {
+	if fc.Repos.B.Repo != "" {
+		s.BRepo = fc.Repos.B.Repo
+	}
+	if fc.Repos.B.ExamplesPath != "" {
+		s.BExamplesPath = fc.Repos.B.ExamplesPath
+	}
+	if fc.Repos.B.DefaultBranch != "" {
+		s.BDefaultBranch = fc.Repos.B.DefaultBranch
+	}
+	if len(fc.Repos.B.IgnoreNames) > 0 {
+		s.IgnoreNames = fc.Repos.B.IgnoreNames
+	}
+	if fc.Repos.C.Repo != "" {
+		s.CRepo = fc.Repos.C.Repo
+	}
+	if fc.Repos.C.DocsRoot != "" {
+		s.CDocsRoot = fc.Repos.C.DocsRoot
+	}
+	if fc.Repos.C.DefaultBranch != "" {
+		s.CDefaultBranch = fc.Repos.C.DefaultBranch
+	}
+	if fc.Repos.C.SyncedManifest != "" {
+		s.CSyncedManifest = fc.Repos.C.SyncedManifest
+	}
+	if len(fc.Repos.C.PathAllowlist) > 0 {
+		s.PathAllowlist = fc.Repos.C.PathAllowlist
+	}
+	if fc.AI.BaseURL != "" {
+		s.AIBaseURL = fc.AI.BaseURL
+	}
+	if fc.AI.Model != "" {
+		s.AIModel = fc.AI.Model
+	}
+	if fc.AI.TimeoutSeconds > 0 {
+		s.AITimeoutSeconds = fc.AI.TimeoutSeconds
+	}
+	if fc.AI.MaxRetries > 0 {
+		s.AIMaxRetries = fc.AI.MaxRetries
+	}
+	if fc.AI.MaxContextChars > 0 {
+		s.MaxContextChars = fc.AI.MaxContextChars
+	}
+	s.ResponseFormatJSON = fc.AI.ResponseFormatJSON || s.ResponseFormatJSON
+	if fc.Skill.ID != "" {
+		s.SkillID = fc.Skill.ID
+	}
+	if fc.Skill.Root != "" {
+		s.SkillRoot = fc.Skill.Root
+	}
+	s.DryRun = fc.Runtime.DryRun
+	if fc.Runtime.WorkDir != "" {
+		s.WorkDir = fc.Runtime.WorkDir
+	}
+	if fc.Runtime.StatePath != "" {
+		s.StatePath = fc.Runtime.StatePath
+	}
+	if fc.Runtime.PRMode != "" {
+		s.PRMode = fc.Runtime.PRMode
+	}
+	if fc.Runtime.PRUpdateMode != "" {
+		s.PRUpdateMode = fc.Runtime.PRUpdateMode
+	}
+	if fc.Runtime.LogLevel != "" {
+		s.LogLevel = fc.Runtime.LogLevel
+	}
+	if fc.Detection.SyncedStrategy != "" {
+		s.SyncedStrategy = fc.Detection.SyncedStrategy
+	}
+	if fc.Detection.Granularity != "" {
+		s.Granularity = fc.Detection.Granularity
+	}
+}
+
+func applyEnv(s *Settings) {
+	set := func(key string, dst *string) {
+		if v := os.Getenv(key); v != "" {
+			*dst = v
+		}
+	}
+	set("B_REPO", &s.BRepo)
+	set("B_REPO_TOKEN", &s.BRepoToken)
+	set("B_EXAMPLES_PATH", &s.BExamplesPath)
+	set("B_DEFAULT_BRANCH", &s.BDefaultBranch)
+	set("C_REPO", &s.CRepo)
+	set("C_REPO_TOKEN", &s.CRepoToken)
+	set("C_DOCS_ROOT", &s.CDocsRoot)
+	set("C_DEFAULT_BRANCH", &s.CDefaultBranch)
+	set("C_SYNCED_MANIFEST", &s.CSyncedManifest)
+	set("AI_BASE_URL", &s.AIBaseURL)
+	set("AI_API_KEY", &s.AIAPIKey)
+	set("AI_MODEL", &s.AIModel)
+	set("SKILL_ID", &s.SkillID)
+	set("STATE_PATH", &s.StatePath)
+	set("WORK_DIR", &s.WorkDir)
+	set("PR_MODE", &s.PRMode)
+	set("PR_UPDATE_MODE", &s.PRUpdateMode)
+	set("LOG_LEVEL", &s.LogLevel)
+
+	if v := os.Getenv("AI_TIMEOUT_SECONDS"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil {
+			s.AITimeoutSeconds = n
+		}
+	}
+	if v := os.Getenv("AI_MAX_RETRIES"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil {
+			s.AIMaxRetries = n
+		}
+	}
+	if v := os.Getenv("DRY_RUN"); v != "" {
+		s.DryRun = parseBool(v)
+	}
+}
+
+func parseBool(v string) bool {
+	switch strings.ToLower(strings.TrimSpace(v)) {
+	case "1", "true", "yes", "on":
+		return true
+	default:
+		return false
+	}
+}
+
+func (s *Settings) RequireRepos() error {
+	var missing []string
+	if s.BRepo == "" {
+		missing = append(missing, "B_REPO")
+	}
+	if s.CRepo == "" {
+		missing = append(missing, "C_REPO")
+	}
+	if len(missing) > 0 {
+		return fmt.Errorf("missing required settings: %s", strings.Join(missing, ", "))
+	}
+	return nil
+}
+
+func (s *Settings) RequireAI() error {
+	if s.AIAPIKey == "" {
+		return fmt.Errorf("missing required setting: AI_API_KEY")
+	}
+	return nil
+}
+
+func (s *Settings) AbsoluteStatePath() string {
+	if filepath.IsAbs(s.StatePath) {
+		return s.StatePath
+	}
+	return filepath.Join(s.RepoRoot, s.StatePath)
+}
+
+func (s *Settings) AbsoluteWorkDir() string {
+	if filepath.IsAbs(s.WorkDir) {
+		return s.WorkDir
+	}
+	return filepath.Join(s.RepoRoot, s.WorkDir)
+}
+
+func (s *Settings) SkillDir() string {
+	return filepath.Join(s.RepoRoot, s.SkillRoot, s.SkillID)
+}
+
+func (s *Settings) TemplatesDir() string {
+	return filepath.Join(s.RepoRoot, "templates")
+}
