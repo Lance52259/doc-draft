@@ -20,6 +20,8 @@ permissions:
 jobs:
   craft:
     runs-on: ubuntu-latest
+    # Secrets 配置在 Settings → Environments → Development 时必须声明
+    environment: Development
     steps:
       - name: Checkout doc-craft
         uses: actions/checkout@v4
