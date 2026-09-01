@@ -85,6 +85,10 @@ func runDetect(args []string) int {
 		log.Println(err)
 		return 1
 	}
+	if err := filterOpenPRPractices(s, result); err != nil {
+		log.Println(err)
+		return 1
+	}
 	data, _ := json.MarshalIndent(result, "", "  ")
 	if *out != "" {
 		if err := os.WriteFile(*out, append(data, '\n'), 0o644); err != nil {
@@ -123,6 +127,10 @@ func runGenerate(args []string) int {
 	}
 	detection, err := (&monitor.ChangeDetector{Settings: s}).Detect(repoCtx)
 	if err != nil {
+		log.Println(err)
+		return 1
+	}
+	if err := filterOpenPRPractices(s, detection); err != nil {
 		log.Println(err)
 		return 1
 	}
@@ -181,6 +189,10 @@ func runPipeline(args []string) int {
 		log.Println(err)
 		return 1
 	}
+	if err := filterOpenPRPractices(s, detection); err != nil {
+		log.Println(err)
+		return 1
+	}
 
 	selected := detection.NewPractices
 	if *practice != "" {
@@ -192,12 +204,24 @@ func runPipeline(args []string) int {
 		}
 		selected = filtered
 		if len(selected) == 0 {
+			// Explicit practice may have been filtered as open-PR skip
+			for _, msg := range detection.SkippedOpenPR {
+				if strings.HasPrefix(msg, *practice+":") {
+					fmt.Printf("Practice %s skipped (open PR already exists)\n", *practice)
+					printJSON(model.PipelineResult{Detected: *detection, Skipped: detection.SkippedOpenPR, DryRun: s.DryRun})
+					return 0
+				}
+			}
 			fmt.Printf("No new practice matching %s\n", *practice)
 			return 0
 		}
 	}
 
-	pipeline := model.PipelineResult{Detected: *detection, DryRun: s.DryRun}
+	pipeline := model.PipelineResult{
+		Detected: *detection,
+		Skipped:  append([]string{}, detection.SkippedOpenPR...),
+		DryRun:   s.DryRun,
+	}
 	if len(selected) == 0 {
 		fmt.Println("No new practices; exiting.")
 		printJSON(pipeline)
@@ -221,6 +245,18 @@ func runPipeline(args []string) int {
 	state, _ := stateMgr.Load()
 
 	for _, item := range selected {
+		// Re-check immediately before generate (race with concurrent runs)
+		branch := gitops.PracticeBranch(item.PracticeID)
+		if existing, err := prm.FindOpenPR(branch); err != nil {
+			pipeline.Errors = append(pipeline.Errors, fmt.Sprintf("%s: %v", item.PracticeID, err))
+			continue
+		} else if existing != nil {
+			msg := fmt.Sprintf("%s: skip, open PR #%d %s (head %s)", item.PracticeID, existing.Number, existing.URL, branch)
+			pipeline.Skipped = append(pipeline.Skipped, msg)
+			state.OpenPRs[item.PracticeID] = existing.URL
+			continue
+		}
+
 		dir := filepath.Join(repoCtx.B.LocalPath, item.SourcePath)
 		result, err := gen.Generate(context.Background(), item, dir)
 		if err != nil {
@@ -229,7 +265,6 @@ func runPipeline(args []string) int {
 		}
 		pipeline.Generated = append(pipeline.Generated, *result)
 
-		branch := branchName(item.PracticeID)
 		title := commitTitle(s, item)
 		tpl, _ := gitops.LoadPRBodyTemplate(s.RepoRoot)
 		body := gitops.BuildPRBody(gitops.PRBodyInput{
@@ -326,13 +361,28 @@ func selectPractices(s *config.Settings, ctx *monitor.RepoContext, detection *mo
 	return detection.NewPractices, nil
 }
 
-func branchName(practiceID string) string {
-	slug := strings.ReplaceAll(practiceID, "/", "-")
-	name := "doc-craft/" + slug
-	if len(name) > 200 {
-		return name[:200]
+func filterOpenPRPractices(s *config.Settings, detection *model.DetectionResult) error {
+	if detection == nil || len(detection.NewPractices) == 0 {
+		return nil
 	}
-	return name
+	if strings.TrimSpace(s.CRepoToken) == "" {
+		fmt.Println("warn: C_REPO_TOKEN unset; skip open-PR filter")
+		return nil
+	}
+	prm, err := gitops.NewPRManager(s)
+	if err != nil {
+		return err
+	}
+	keep, skipped, err := prm.FilterOpenPRs(detection.NewPractices)
+	if err != nil {
+		return err
+	}
+	detection.NewPractices = keep
+	if len(skipped) > 0 {
+		detection.SkippedOpenPR = append(detection.SkippedOpenPR, skipped...)
+		fmt.Printf("Skipped %d practice(s) with open PR on C\n", len(skipped))
+	}
+	return nil
 }
 
 func commitTitle(s *config.Settings, p model.Practice) string {

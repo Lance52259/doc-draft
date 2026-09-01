@@ -168,10 +168,11 @@ type GenerateResult struct {
 
 // DetectionResult is the outcome of B vs C comparison.
 type DetectionResult struct {
-	NewPractices []Practice `json:"new_practices"`
-	SyncedIDs    []string   `json:"synced_ids"`
-	BCommit      string     `json:"b_commit,omitempty"`
-	CCommit      string     `json:"c_commit,omitempty"`
+	NewPractices  []Practice `json:"new_practices"`
+	SyncedIDs     []string   `json:"synced_ids"`
+	SkippedOpenPR []string   `json:"skipped_open_pr,omitempty"`
+	BCommit       string     `json:"b_commit,omitempty"`
+	CCommit       string     `json:"c_commit,omitempty"`
 }
 
 // PipelineResult summarizes a full run.

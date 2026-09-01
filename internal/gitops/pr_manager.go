@@ -42,6 +42,8 @@ type PRManager struct {
 	Owner    string
 	Repo     string
 	Client   *http.Client
+	// APIBase defaults to https://api.github.com (override in tests).
+	APIBase string
 }
 
 func NewPRManager(settings *config.Settings) (*PRManager, error) {
@@ -54,7 +56,16 @@ func NewPRManager(settings *config.Settings) (*PRManager, error) {
 		Owner:    owner,
 		Repo:     repo,
 		Client:   &http.Client{Timeout: 60 * time.Second},
+		APIBase:  "https://api.github.com",
 	}, nil
+}
+
+func (m *PRManager) api(pathQuery string) string {
+	base := m.APIBase
+	if base == "" {
+		base = "https://api.github.com"
+	}
+	return strings.TrimRight(base, "/") + pathQuery
 }
 
 func (m *PRManager) headers() (http.Header, error) {
@@ -73,7 +84,7 @@ func (m *PRManager) FindOpenPR(headBranch string) (*PullRequest, error) {
 	if err != nil {
 		return nil, err
 	}
-	url := fmt.Sprintf("https://api.github.com/repos/%s/%s/pulls?state=open&head=%s:%s", m.Owner, m.Repo, m.Owner, headBranch)
+	url := m.api(fmt.Sprintf("/repos/%s/%s/pulls?state=open&head=%s:%s", m.Owner, m.Repo, m.Owner, headBranch))
 	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
 		return nil, err
@@ -116,7 +127,7 @@ func (m *PRManager) CreatePR(title, body, head, base string, dryRun bool) (*Pull
 			return nil, err
 		}
 		payload, _ := json.Marshal(map[string]string{"title": title, "body": body})
-		url := fmt.Sprintf("https://api.github.com/repos/%s/%s/pulls/%d", m.Owner, m.Repo, existing.Number)
+		url := m.api(fmt.Sprintf("/repos/%s/%s/pulls/%d", m.Owner, m.Repo, existing.Number))
 		req, err := http.NewRequest(http.MethodPatch, url, bytes.NewReader(payload))
 		if err != nil {
 			return nil, err
@@ -155,7 +166,7 @@ func (m *PRManager) CreatePR(title, body, head, base string, dryRun bool) (*Pull
 		"head":  head,
 		"base":  base,
 	})
-	url := fmt.Sprintf("https://api.github.com/repos/%s/%s/pulls", m.Owner, m.Repo)
+	url := m.api(fmt.Sprintf("/repos/%s/%s/pulls", m.Owner, m.Repo))
 	req, err := http.NewRequest(http.MethodPost, url, bytes.NewReader(payload))
 	if err != nil {
 		return nil, err
