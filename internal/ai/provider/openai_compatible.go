@@ -30,12 +30,12 @@ type Provider interface {
 
 // OpenAICompatible talks to DeepSeek (or any OpenAI-compatible) /chat/completions.
 type OpenAICompatible struct {
-	APIKey         string
-	BaseURL        string
-	Model          string
-	Timeout        time.Duration
-	MaxRetries     int
-	HTTPClient     *http.Client
+	APIKey     string
+	BaseURL    string
+	Model      string
+	Timeout    time.Duration
+	MaxRetries int
+	HTTPClient *http.Client
 }
 
 func NewDeepSeek(apiKey, baseURL, model string, timeoutSec, maxRetries int) *OpenAICompatible {

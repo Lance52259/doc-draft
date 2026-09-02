@@ -8,10 +8,10 @@ import (
 
 // RunState persists last run metadata.
 type RunState struct {
-	BCommit             string            `json:"b_commit,omitempty"`
-	CCommit             string            `json:"c_commit,omitempty"`
-	ProcessedPractices  []string          `json:"processed_practices"`
-	OpenPRs             map[string]string `json:"open_prs"`
+	BCommit            string            `json:"b_commit,omitempty"`
+	CCommit            string            `json:"c_commit,omitempty"`
+	ProcessedPractices []string          `json:"processed_practices"`
+	OpenPRs            map[string]string `json:"open_prs"`
 }
 
 // StateManager loads/saves RunState JSON.

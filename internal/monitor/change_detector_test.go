@@ -72,14 +72,14 @@ func TestDetectHybrid(t *testing.T) {
 	_ = os.WriteFile(filepath.Join(c, "synced-practices.json"), manifest, 0o644)
 
 	s := &config.Settings{
-		BRepo:            "o/b",
-		CRepo:            "o/c",
-		SyncedStrategy:   "hybrid",
-		CDocsRoot:        "docs/best-practices",
-		CSyncedManifest:  "synced-practices.json",
-		BExamplesPath:    "examples",
-		IgnoreNames:      []string{"README.md", "README", ".gitkeep"},
-		Granularity:      "directory",
+		BRepo:           "o/b",
+		CRepo:           "o/c",
+		SyncedStrategy:  "hybrid",
+		CDocsRoot:       "docs/best-practices",
+		CSyncedManifest: "synced-practices.json",
+		BExamplesPath:   "examples",
+		IgnoreNames:     []string{"README.md", "README", ".gitkeep"},
+		Granularity:     "directory",
 	}
 	ctx := &monitor.RepoContext{
 		B: model.RepoRef{Name: "o/b", LocalPath: b, CommitSHA: "b1"},

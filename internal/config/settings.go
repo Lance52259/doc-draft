@@ -15,26 +15,26 @@ import (
 type Settings struct {
 	RepoRoot string
 
-	BRepo           string
-	BRepoToken      string
-	BExamplesPath   string
-	BDefaultBranch  string
-	IgnoreNames     []string
+	BRepo          string
+	BRepoToken     string
+	BExamplesPath  string
+	BDefaultBranch string
+	IgnoreNames    []string
 
-	CRepo            string
-	CRepoToken       string
-	CDocsRoot        string
-	CDefaultBranch   string
-	CSyncedManifest  string
-	PathAllowlist    []string
+	CRepo           string
+	CRepoToken      string
+	CDocsRoot       string
+	CDefaultBranch  string
+	CSyncedManifest string
+	PathAllowlist   []string
 
-	AIBaseURL           string
-	AIAPIKey            string
-	AIModel             string
-	AITimeoutSeconds    int
-	AIMaxRetries        int
-	MaxContextChars     int
-	ResponseFormatJSON  bool
+	AIBaseURL          string
+	AIAPIKey           string
+	AIModel            string
+	AITimeoutSeconds   int
+	AIMaxRetries       int
+	MaxContextChars    int
+	ResponseFormatJSON bool
 
 	SkillID   string
 	SkillRoot string
@@ -62,17 +62,17 @@ type MappingConfig struct {
 }
 
 type MappingDefaults struct {
-	SkillID            string `yaml:"skill_id"`
-	Template           string `yaml:"template"`
-	TargetPathPattern  string `yaml:"target_path_pattern"`
-	Action             string `yaml:"action"`
+	SkillID           string `yaml:"skill_id"`
+	Template          string `yaml:"template"`
+	TargetPathPattern string `yaml:"target_path_pattern"`
+	Action            string `yaml:"action"`
 }
 
 type MappingRule struct {
-	Match              string `yaml:"match"`
-	SkillID            string `yaml:"skill_id"`
-	Template           string `yaml:"template"`
-	TargetPathPattern  string `yaml:"target_path_pattern"`
+	Match             string `yaml:"match"`
+	SkillID           string `yaml:"skill_id"`
+	Template          string `yaml:"template"`
+	TargetPathPattern string `yaml:"target_path_pattern"`
 }
 
 type fileConfig struct {
@@ -84,11 +84,11 @@ type fileConfig struct {
 			IgnoreNames   []string `yaml:"ignore_names"`
 		} `yaml:"b"`
 		C struct {
-			Repo            string   `yaml:"repo"`
-			DocsRoot        string   `yaml:"docs_root"`
-			DefaultBranch   string   `yaml:"default_branch"`
-			SyncedManifest  string   `yaml:"synced_manifest"`
-			PathAllowlist   []string `yaml:"path_allowlist"`
+			Repo           string   `yaml:"repo"`
+			DocsRoot       string   `yaml:"docs_root"`
+			DefaultBranch  string   `yaml:"default_branch"`
+			SyncedManifest string   `yaml:"synced_manifest"`
+			PathAllowlist  []string `yaml:"path_allowlist"`
 		} `yaml:"c"`
 	} `yaml:"repos"`
 	AI struct {
