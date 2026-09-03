@@ -15,7 +15,7 @@ func TestBuildPRBody(t *testing.T) {
 	}
 	result := &model.GenerateResult{
 		PracticeID: p.PracticeID,
-		Summary:    "补充 RDS 基础实例文档",
+		Summary:    "Add RDS basic instance docs",
 		Files: []model.DocFileChange{
 			{Path: "docs/zh-cn/best-practices/rds/basic_instance.md", Content: "# x\n", Action: "create"},
 			{Path: "docs/zh-cn/SUMMARY.md", Content: "...", Action: "update"},
@@ -29,11 +29,11 @@ func TestBuildPRBody(t *testing.T) {
 		SkillID:  "best-practice-doc",
 	})
 	needles := []string{
-		"| 服务 | `rds` |",
-		"| 实践 | `basic instance` |",
+		"| Service | `rds` |",
+		"| Practice | `basic instance` |",
 		"`examples/rds/basic_instance`",
 		"huaweicloud/terraform-provider-huaweicloud@abc1234",
-		"补充 RDS 基础实例文档",
+		"Add RDS basic instance docs",
 		"`create` `docs/zh-cn/best-practices/rds/basic_instance.md`",
 		"## Review checklist",
 		"docs(rds): support new best practice for",
@@ -48,7 +48,7 @@ func TestBuildPRBody(t *testing.T) {
 func TestSummarizeChanges(t *testing.T) {
 	result := &model.GenerateResult{
 		PracticeID: "examples/foo",
-		Summary:    "新增 foo 文档",
+		Summary:    "Add foo docs",
 		Files: []model.DocFileChange{
 			{Path: "docs/best-practices/foo.md", Content: "# foo\n", Action: "create"},
 		},

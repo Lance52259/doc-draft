@@ -13,7 +13,7 @@ import (
 const outputSchemaHint = `你必须只输出一个 JSON 对象（不要 Markdown 围栏），格式如下：
 {
   "practice_id": "<与输入相同的 practice_id>",
-  "summary": "<一句话中文摘要，用于 PR 说明>",
+  "summary": "<one-sentence English summary for the PR description>",
   "files": [
     {
       "path": "<相对 C 仓库根目录的路径>",
