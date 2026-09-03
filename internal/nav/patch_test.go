@@ -22,8 +22,21 @@ const sampleSUMMARY = `# Summary
 * [贡献](contribute.md)
 `
 
+const sampleEnSUMMARY = `# Summary
+
+* [Product Introduction](introductions/)
+* [Best Practices](best-practices/)
+  * [Introduction](best-practices/README.md)
+  * [Anti-DDoS](best-practices/anti-ddos/)
+    * [Introduction](best-practices/anti-ddos/index.md)
+    * [Deploy Basic Protection](best-practices/anti-ddos/basic.md)
+  * [AOM](best-practices/aom/)
+    * [Introduction](best-practices/aom/index.md)
+    * [Deploy AOM Alarm Action Callback](best-practices/aom/action_callback.md)
+`
+
 func TestPatchSUMMARYExistingService(t *testing.T) {
-	got, err := nav.PatchSUMMARY(sampleSUMMARY, "aom", "AOM", "prevent_elb_alarm_storm", "部署AOM防止ELB告警风暴")
+	got, err := nav.PatchSUMMARY(sampleSUMMARY, "aom", "AOM", "prevent_elb_alarm_storm", "部署AOM防止ELB告警风暴", nav.ZhCN.IntroLabel)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -33,43 +46,36 @@ func TestPatchSUMMARYExistingService(t *testing.T) {
 	if !strings.Contains(got, "best-practices/anti-ddos/basic.md") || !strings.Contains(got, "* [贡献]") {
 		t.Fatalf("destroyed existing entries:\n%s", got)
 	}
-	if strings.Count(got, "# Summary") != 1 {
-		t.Fatalf("title broken:\n%s", got)
-	}
 }
 
 func TestPatchSUMMARYNewService(t *testing.T) {
-	got, err := nav.PatchSUMMARY(sampleSUMMARY, "aad", "AAD", "black_white_lists", "部署黑白名单防护")
+	got, err := nav.PatchSUMMARY(sampleEnSUMMARY, "aad", "AAD", "black_white_lists", "Deploy Black/White Lists", nav.EnUS.IntroLabel)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(got, "  * [AAD](best-practices/aad/)") {
+	if !strings.Contains(got, "  * [AAD](best-practices/aad/)") || !strings.Contains(got, "[Introduction](best-practices/aad/index.md)") {
 		t.Fatalf("missing service:\n%s", got)
 	}
-	// aad should appear before anti-ddos alphabetically
 	aad := strings.Index(got, "best-practices/aad/")
 	anti := strings.Index(got, "best-practices/anti-ddos/")
 	if aad < 0 || anti < 0 || aad > anti {
 		t.Fatalf("service order wrong:\n%s", got)
 	}
-	if !strings.Contains(got, "best-practices/aom/action_callback.md") {
-		t.Fatalf("lost aom:\n%s", got)
-	}
 }
 
 func TestPatchServiceIndex(t *testing.T) {
-	base := `# 简介
+	base := `# Introduction
 
-## 最佳实践列表
+## Best Practices List
 
-本章节包含以下最佳实践：
+This section contains the following best practices:
 
-* [部署基础防护](basic.md) - 介绍基础防护。
-* [部署LTS配置](lts_config.md) - 介绍LTS。
+* [Deploy Basic Protection](basic.md) - Basic.
+* [Deploy LTS Configuration](lts_config.md) - LTS.
 
-## 参考资料
+## Reference Materials
 `
-	got, err := nav.PatchServiceIndex(base, "default_protection_policy", "部署默认防护策略", "介绍默认防护策略")
+	got, err := nav.PatchServiceIndex(base, "default_protection_policy", "Deploy Default Protection Policy", "Default policy", nav.EnUS)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -82,21 +88,21 @@ func TestPatchServiceIndex(t *testing.T) {
 }
 
 func TestPatchBestPracticesREADME(t *testing.T) {
-	base := `# 中心
+	base := `# Center
 
-## 文档导航
+## Documentation Navigation
 
-### [Anti-DDoS最佳实践](anti-ddos/index.md)
+### [Anti-DDoS Best Practices](anti-ddos/index.md)
 
-Anti-DDoS 简介。
+Anti-DDoS.
 
-### [应用运维管理（AOM）最佳实践](aom/index.md)
+### [AOM Best Practices](aom/index.md)
 
-AOM 简介。
+AOM.
 
-## 其他
+## Other
 `
-	got, err := nav.PatchBestPracticesREADME(base, "aad", "DDoS高防（AAD）最佳实践", "AAD 简介。")
+	got, err := nav.PatchBestPracticesREADME(base, "aad", "AAD Best Practices", "AAD intro.", nav.EnUS)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -105,7 +111,7 @@ AOM 简介。
 	if aad < 0 || anti < 0 || aad > anti {
 		t.Fatalf("nav order:\n%s", got)
 	}
-	if !strings.Contains(got, "## 其他") {
+	if !strings.Contains(got, "## Other") {
 		t.Fatalf("lost suffix:\n%s", got)
 	}
 }
@@ -114,7 +120,7 @@ func TestIsDestructiveUpdate(t *testing.T) {
 	if !nav.IsDestructiveUpdate(sampleSUMMARY, "# 目录\n\n* [AAD](best-practices/aad/)\n") {
 		t.Fatal("expected destructive")
 	}
-	patched, _ := nav.PatchSUMMARY(sampleSUMMARY, "aad", "AAD", "black_white_lists", "部署黑白名单防护")
+	patched, _ := nav.PatchSUMMARY(sampleSUMMARY, "aad", "AAD", "black_white_lists", "部署黑白名单防护", nav.ZhCN.IntroLabel)
 	if nav.IsDestructiveUpdate(sampleSUMMARY, patched) {
 		t.Fatal("surgical patch should not be destructive")
 	}

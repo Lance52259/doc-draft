@@ -160,7 +160,7 @@ func Load() (*Settings, error) {
 		CDefaultBranch:     "master",
 		CRepo:              "Lance52259/hcbp-demo",
 		CSyncedManifest:    "synced-practices.json",
-		PathAllowlist:      []string{"docs/zh-cn/"},
+		PathAllowlist:      []string{"docs/zh-cn/", "docs/en-us/"},
 		AIBaseURL:          "https://api.deepseek.com",
 		AIModel:            "deepseek-chat",
 		AITimeoutSeconds:   120,

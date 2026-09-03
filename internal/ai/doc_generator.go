@@ -243,11 +243,14 @@ func (g *DocGenerator) Generate(ctx context.Context, practice model.Practice, pr
 		}
 		files, err = nav.ApplyToFiles(files, nav.ApplyOptions{
 			CRepoRoot: cRepoRoot,
-			DocsRoot:  g.Settings.CDocsRoot,
 			Service:   doc.Service,
 			Slug:      doc.Slug,
 		})
 		if err != nil {
+			lastErr = err
+			continue
+		}
+		if err := requireBilingualBodies(files, g.Settings.CDocsRoot, doc.Service, doc.Slug); err != nil {
 			lastErr = err
 			continue
 		}
@@ -291,4 +294,22 @@ func parseFiles(data map[string]any, fallbackPath string) ([]model.DocFileChange
 		return []model.DocFileChange{{Path: fallbackPath, Content: content, Action: "create"}}, nil
 	}
 	return nil, fmt.Errorf("AI JSON missing files[]")
+}
+
+func requireBilingualBodies(files []model.DocFileChange, _docsRoot, service, slug string) error {
+	zh := filepath.ToSlash(filepath.Join("docs/zh-cn/best-practices", service, slug+".md"))
+	en := filepath.ToSlash(filepath.Join("docs/en-us/best-practices", service, slug+".md"))
+	var hasZh, hasEn bool
+	for _, f := range files {
+		switch filepath.ToSlash(f.Path) {
+		case zh:
+			hasZh = true
+		case en:
+			hasEn = true
+		}
+	}
+	if !hasZh || !hasEn {
+		return fmt.Errorf("bilingual bodies required: missing %v", map[string]bool{"zh": hasZh, "en": hasEn})
+	}
+	return nil
 }

@@ -4,13 +4,19 @@
 defaults:
   skill_id: best-practice-doc
   template: best_practice_template.md
-  # {service}/{practice_slug} 使用映射后的 C 仓规范名
+  # 主正文默认中文路径；英文对称路径由 Skill / 编排层一并生成
   target_path_pattern: "docs/zh-cn/best-practices/{service}/{practice_slug}.md"
   action: create
   also_update:
+    - docs/en-us/best-practices/{service}/{practice_slug}.md
+    - docs/en-us/best-practices/{service}/index.md
+    - docs/en-us/SUMMARY.md
     - docs/zh-cn/best-practices/{service}/index.md
     - docs/zh-cn/SUMMARY.md
   also_update_when_new_service:
+    - docs/en-us/best-practices/{service}/index.md
+    - docs/en-us/best-practices/README.md
+    - docs/en-us/SUMMARY.md
     - docs/zh-cn/best-practices/{service}/index.md
     - docs/zh-cn/best-practices/README.md
     - docs/zh-cn/SUMMARY.md

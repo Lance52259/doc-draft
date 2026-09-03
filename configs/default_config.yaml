@@ -19,6 +19,7 @@ repos:
     synced_manifest: synced-practices.json
     path_allowlist:
       - docs/zh-cn/
+      - docs/en-us/
 
 ai:
   provider: openai_compatible

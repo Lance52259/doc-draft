@@ -10,36 +10,60 @@ import (
 	"github.com/Lance52259/doc-draft/internal/nav"
 )
 
-func TestApplyToFilesExistingService(t *testing.T) {
+func writeTree(t *testing.T, root string, files map[string]string) {
+	t.Helper()
+	for rel, content := range files {
+		path := filepath.Join(root, filepath.FromSlash(rel))
+		_ = os.MkdirAll(filepath.Dir(path), 0o755)
+		if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+}
+
+func TestApplyToFilesExistingServiceBilingual(t *testing.T) {
 	root := t.TempDir()
-	summaryRel := "docs/zh-cn/SUMMARY.md"
-	docs := filepath.Join(root, "docs", "zh-cn", "best-practices", "ecs")
-	_ = os.MkdirAll(docs, 0o755)
-	base := `# Summary
+	writeTree(t, root, map[string]string{
+		"docs/zh-cn/SUMMARY.md": `# Summary
 
 * [最佳实践](best-practices/)
   * [简介](best-practices/README.md)
   * [ECS](best-practices/ecs/)
     * [简介](best-practices/ecs/index.md)
     * [部署基础实例](best-practices/ecs/simple_instance.md)
-`
-	_ = os.WriteFile(filepath.Join(root, filepath.FromSlash(summaryRel)), []byte(base), 0o644)
-	_ = os.WriteFile(filepath.Join(docs, "index.md"), []byte(`# 简介
+`,
+		"docs/en-us/SUMMARY.md": `# Summary
+
+* [Best Practices](best-practices/)
+  * [Introduction](best-practices/README.md)
+  * [ECS](best-practices/ecs/)
+    * [Introduction](best-practices/ecs/index.md)
+    * [Deploy Basic Instance](best-practices/ecs/simple_instance.md)
+`,
+		"docs/zh-cn/best-practices/ecs/index.md": `# 简介
 
 ## 最佳实践列表
 
 * [部署基础实例](simple_instance.md) - 基础实例。
-`), 0o644)
-	_ = os.WriteFile(filepath.Join(root, "docs", "zh-cn", "best-practices", "README.md"), []byte("# 中心\n\n## 文档导航\n\n### [ECS最佳实践](ecs/index.md)\n\nECS。\n"), 0o644)
+`,
+		"docs/en-us/best-practices/ecs/index.md": `# Introduction
+
+## Best Practices List
+
+* [Deploy Basic Instance](simple_instance.md) - Basic.
+`,
+		"docs/zh-cn/best-practices/README.md": "# 中心\n\n## 文档导航\n\n### [ECS最佳实践](ecs/index.md)\n\nECS。\n",
+		"docs/en-us/best-practices/README.md": "# Center\n\n## Documentation Navigation\n\n### [ECS Best Practices](ecs/index.md)\n\nECS.\n",
+	})
 
 	files := []model.DocFileChange{
-		{Path: "docs/zh-cn/best-practices/ecs/prepaid_instance.md", Action: "create", Content: "# 部署包周期实例\n\n## 应用场景\n"},
-		{Path: summaryRel, Action: "update", Content: "# 目录\n\n* [ECS](best-practices/ecs/)\n"},
-		{Path: "docs/zh-cn/best-practices/ecs/index.md", Action: "update", Content: "# wiped\n"},
+		{Path: "docs/zh-cn/best-practices/ecs/prepaid_instance.md", Action: "create", Content: "# 部署包周期实例\n"},
+		{Path: "docs/en-us/best-practices/ecs/prepaid_instance.md", Action: "create", Content: "# Deploy PrePaid Instance\n"},
+		{Path: "docs/zh-cn/SUMMARY.md", Action: "update", Content: "# 目录\n"},
+		{Path: "docs/en-us/SUMMARY.md", Action: "update", Content: "# wiped\n"},
 	}
 	out, err := nav.ApplyToFiles(files, nav.ApplyOptions{
 		CRepoRoot: root,
-		DocsRoot:  "docs/zh-cn/best-practices",
 		Service:   "ecs",
 		Slug:      "prepaid_instance",
 	})
@@ -47,101 +71,90 @@ func TestApplyToFilesExistingService(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	var summary, index, readme string
+	got := map[string]string{}
 	for _, f := range out {
-		switch f.Path {
-		case summaryRel:
-			summary = f.Content
-		case "docs/zh-cn/best-practices/ecs/index.md":
-			index = f.Content
-		case "docs/zh-cn/best-practices/README.md":
-			readme = f.Content
+		got[f.Path] = f.Content
+	}
+	if _, ok := got["docs/zh-cn/best-practices/README.md"]; ok {
+		t.Fatal("existing service must not touch zh README")
+	}
+	if _, ok := got["docs/en-us/best-practices/README.md"]; ok {
+		t.Fatal("existing service must not touch en README")
+	}
+	for _, p := range []string{"docs/zh-cn/SUMMARY.md", "docs/en-us/SUMMARY.md"} {
+		if !strings.Contains(got[p], "simple_instance.md") || !strings.Contains(got[p], "prepaid_instance.md") {
+			t.Fatalf("%s:\n%s", p, got[p])
+		}
+		if strings.Contains(got[p], "# 目录") || strings.Contains(got[p], "# wiped") {
+			t.Fatalf("destructive %s", p)
 		}
 	}
-	if readme != "" {
-		t.Fatal("existing service must not touch README")
+	if !strings.Contains(got["docs/en-us/best-practices/ecs/index.md"], "prepaid_instance.md") {
+		t.Fatalf("en index: %s", got["docs/en-us/best-practices/ecs/index.md"])
 	}
-	if strings.Contains(summary, "# 目录") || !strings.Contains(summary, "simple_instance.md") {
-		t.Fatalf("summary broken:\n%s", summary)
-	}
-	if !strings.Contains(summary, "prepaid_instance.md") {
-		t.Fatalf("summary missing practice:\n%s", summary)
-	}
-	if !strings.Contains(index, "simple_instance.md") || !strings.Contains(index, "prepaid_instance.md") {
-		t.Fatalf("index:\n%s", index)
+	if !strings.Contains(got["docs/zh-cn/best-practices/ecs/index.md"], "prepaid_instance.md") {
+		t.Fatalf("zh index: %s", got["docs/zh-cn/best-practices/ecs/index.md"])
 	}
 }
 
-func TestApplyToFilesNewService(t *testing.T) {
+func TestApplyToFilesNewServiceBilingual(t *testing.T) {
 	root := t.TempDir()
-	summaryRel := "docs/zh-cn/SUMMARY.md"
-	_ = os.MkdirAll(filepath.Join(root, "docs", "zh-cn", "best-practices"), 0o755)
-	base := `# Summary
+	writeTree(t, root, map[string]string{
+		"docs/zh-cn/SUMMARY.md": `# Summary
 
 * [最佳实践](best-practices/)
   * [简介](best-practices/README.md)
   * [ECS](best-practices/ecs/)
     * [简介](best-practices/ecs/index.md)
-    * [部署基础实例](best-practices/ecs/simple_instance.md)
-`
-	_ = os.WriteFile(filepath.Join(root, filepath.FromSlash(summaryRel)), []byte(base), 0o644)
-	_ = os.WriteFile(filepath.Join(root, "docs", "zh-cn", "best-practices", "README.md"), []byte(`# 中心
+`,
+		"docs/en-us/SUMMARY.md": `# Summary
 
-## 文档导航
-
-### [ECS最佳实践](ecs/index.md)
-
-ECS。
-`), 0o644)
+* [Best Practices](best-practices/)
+  * [Introduction](best-practices/README.md)
+  * [ECS](best-practices/ecs/)
+    * [Introduction](best-practices/ecs/index.md)
+`,
+		"docs/zh-cn/best-practices/README.md": "# 中心\n\n## 文档导航\n\n### [ECS最佳实践](ecs/index.md)\n\nECS。\n",
+		"docs/en-us/best-practices/README.md": "# Center\n\n## Documentation Navigation\n\n### [ECS Best Practices](ecs/index.md)\n\nECS.\n",
+	})
 
 	files := []model.DocFileChange{
 		{Path: "docs/zh-cn/best-practices/aad/black_white_lists.md", Action: "create", Content: "# 部署黑白名单防护\n"},
+		{Path: "docs/en-us/best-practices/aad/black_white_lists.md", Action: "create", Content: "# Deploy Black White Lists\n"},
 		{Path: "docs/zh-cn/best-practices/aad/index.md", Action: "create", Content: "# 简介\n\n## 最佳实践列表\n\n"},
-		{Path: summaryRel, Action: "update", Content: "# 目录\n"},
+		{Path: "docs/en-us/best-practices/aad/index.md", Action: "create", Content: "# Introduction\n\n## Best Practices List\n\n"},
 	}
 	out, err := nav.ApplyToFiles(files, nav.ApplyOptions{
 		CRepoRoot: root,
-		DocsRoot:  "docs/zh-cn/best-practices",
 		Service:   "aad",
 		Slug:      "black_white_lists",
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	var summary, index, readme string
+	got := map[string]string{}
 	for _, f := range out {
-		switch f.Path {
-		case summaryRel:
-			summary = f.Content
-		case "docs/zh-cn/best-practices/aad/index.md":
-			index = f.Content
-		case "docs/zh-cn/best-practices/README.md":
-			readme = f.Content
+		got[f.Path] = f.Content
+	}
+	for _, p := range []string{"docs/en-us/SUMMARY.md", "docs/zh-cn/SUMMARY.md"} {
+		if !strings.Contains(got[p], "best-practices/aad/") || !strings.Contains(got[p], "black_white_lists.md") {
+			t.Fatalf("%s:\n%s", p, got[p])
 		}
 	}
-	if !strings.Contains(summary, "# Summary") || !strings.Contains(summary, "ecs/simple_instance.md") {
-		t.Fatalf("summary:\n%s", summary)
+	if !strings.Contains(got["docs/en-us/best-practices/README.md"], "aad/index.md") {
+		t.Fatalf("en readme: %s", got["docs/en-us/best-practices/README.md"])
 	}
-	if !strings.Contains(summary, "best-practices/aad/") {
-		t.Fatalf("missing aad service:\n%s", summary)
-	}
-	if index == "" || !strings.Contains(index, "black_white_lists.md") {
-		t.Fatalf("index create:\n%s", index)
-	}
-	if !strings.Contains(readme, "aad/index.md") || !strings.Contains(readme, "ecs/index.md") {
-		t.Fatalf("readme:\n%s", readme)
+	if !strings.Contains(got["docs/zh-cn/best-practices/README.md"], "aad/index.md") {
+		t.Fatalf("zh readme: %s", got["docs/zh-cn/best-practices/README.md"])
 	}
 }
 
-func TestApplyRequiresSUMMARY(t *testing.T) {
+func TestApplyRequiresBothSUMMARY(t *testing.T) {
 	root := t.TempDir()
-	_, err := nav.ApplyToFiles(nil, nav.ApplyOptions{
-		CRepoRoot: root,
-		DocsRoot:  "docs/zh-cn/best-practices",
-		Service:   "ecs",
-		Slug:      "x",
-	})
-	if err == nil || !strings.Contains(err.Error(), "SUMMARY.md must exist") {
+	_ = os.MkdirAll(filepath.Join(root, "docs", "zh-cn"), 0o755)
+	_ = os.WriteFile(filepath.Join(root, "docs", "zh-cn", "SUMMARY.md"), []byte("# Summary\n"), 0o644)
+	_, err := nav.ApplyToFiles(nil, nav.ApplyOptions{CRepoRoot: root, Service: "ecs", Slug: "x"})
+	if err == nil || !strings.Contains(err.Error(), "docs/en-us/SUMMARY.md") {
 		t.Fatalf("err=%v", err)
 	}
 }

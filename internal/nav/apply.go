@@ -12,137 +12,222 @@ import (
 
 var h1Re = regexp.MustCompile(`(?m)^#\s+(.+?)\s*$`)
 
-// ApplyOptions controls surgical navigation updates after AI generation.
+const (
+	zhDocsRoot = "docs/zh-cn/best-practices"
+	enDocsRoot = "docs/en-us/best-practices"
+)
+
+// ApplyOptions controls bilingual surgical navigation updates (Skill steps 3–8).
 type ApplyOptions struct {
-	CRepoRoot     string
-	DocsRoot      string // e.g. docs/zh-cn/best-practices
-	Service       string // C service dir
-	Slug          string // practice file stem
-	ServiceLabel  string
-	PracticeTitle string
-	OneLiner      string
-	READMEHeading string
-	READMEBlurb   string
+	CRepoRoot string
+	Service   string
+	Slug      string
+
+	ServiceLabel string
+
+	ZhTitle   string
+	EnTitle   string
+	ZhOneLiner string
+	EnOneLiner string
+
+	ZhREADMEHeading string
+	EnREADMEHeading string
+	ZhREADMEBlurb   string
+	EnREADMEBlurb   string
 }
 
-// ApplyToFiles enforces navigation rules:
-//   - SUMMARY.md always exists → always surgical insert at the correct place
-//   - service dir first time → keep/require index.md create; patch README + SUMMARY service block
-//   - service dir already exists → surgical insert into index list + SUMMARY practice line only
+// ApplyToFiles enforces Skill order: EN nav first (alpha), then ZH nav following same paths.
 func ApplyToFiles(files []model.DocFileChange, opt ApplyOptions) ([]model.DocFileChange, error) {
 	if opt.CRepoRoot == "" || opt.Service == "" || opt.Slug == "" {
 		return files, nil
 	}
-	docsRoot := opt.DocsRoot
-	if docsRoot == "" {
-		docsRoot = "docs/zh-cn/best-practices"
+
+	zhTitle := opt.ZhTitle
+	if zhTitle == "" {
+		zhTitle = TitleFromFiles(files, zhDocsRoot, opt.Service, opt.Slug)
+	}
+	enTitle := opt.EnTitle
+	if enTitle == "" {
+		enTitle = TitleFromFiles(files, enDocsRoot, opt.Service, opt.Slug)
+	}
+	if enTitle == opt.Slug && zhTitle != opt.Slug {
+		// weak fallback
+		enTitle = zhTitle
+	}
+	zhOne := opt.ZhOneLiner
+	if zhOne == "" {
+		zhOne = fmt.Sprintf("介绍如何使用Terraform自动化完成「%s」", zhTitle)
+	}
+	enOne := opt.EnOneLiner
+	if enOne == "" {
+		enOne = fmt.Sprintf("Introduces how to use Terraform to automate «%s»", enTitle)
 	}
 
-	title := opt.PracticeTitle
-	if title == "" {
-		title = TitleFromFiles(files, docsRoot, opt.Service, opt.Slug)
-	}
-	oneLiner := opt.OneLiner
-	if oneLiner == "" {
-		oneLiner = fmt.Sprintf("介绍如何使用Terraform自动化完成「%s」。", title)
-	}
 	label := opt.ServiceLabel
 	if label == "" {
 		label = strings.ToUpper(opt.Service)
 	}
 
-	summaryPath := filepath.ToSlash(filepath.Join(filepath.Dir(docsRoot), "SUMMARY.md"))
-	indexPath := filepath.ToSlash(filepath.Join(docsRoot, opt.Service, "index.md"))
-	readmePath := filepath.ToSlash(filepath.Join(docsRoot, "README.md"))
-	serviceDir := filepath.Join(opt.CRepoRoot, filepath.FromSlash(docsRoot), opt.Service)
+	zhSummaryPath := "docs/zh-cn/SUMMARY.md"
+	enSummaryPath := "docs/en-us/SUMMARY.md"
+	zhIndexPath := filepath.ToSlash(filepath.Join(zhDocsRoot, opt.Service, "index.md"))
+	enIndexPath := filepath.ToSlash(filepath.Join(enDocsRoot, opt.Service, "index.md"))
+	zhReadmePath := filepath.ToSlash(filepath.Join(zhDocsRoot, "README.md"))
+	enReadmePath := filepath.ToSlash(filepath.Join(enDocsRoot, "README.md"))
 
-	summaryBase, summaryOK := readFile(opt.CRepoRoot, summaryPath)
-	if !summaryOK || strings.TrimSpace(summaryBase) == "" {
-		return nil, fmt.Errorf("SUMMARY.md must exist at %s", summaryPath)
+	zhSummary, zhSummaryOK := readFile(opt.CRepoRoot, zhSummaryPath)
+	enSummary, enSummaryOK := readFile(opt.CRepoRoot, enSummaryPath)
+	if !zhSummaryOK || strings.TrimSpace(zhSummary) == "" {
+		return nil, fmt.Errorf("SUMMARY.md must exist at %s", zhSummaryPath)
 	}
-	if existing := ServiceLabelFromSUMMARY(summaryBase, opt.Service); existing != "" {
+	if !enSummaryOK || strings.TrimSpace(enSummary) == "" {
+		return nil, fmt.Errorf("SUMMARY.md must exist at %s", enSummaryPath)
+	}
+	if existing := ServiceLabelFromSUMMARY(enSummary, opt.Service); existing != "" {
+		label = existing
+	} else if existing := ServiceLabelFromSUMMARY(zhSummary, opt.Service); existing != "" {
 		label = existing
 	}
 
-	indexBase, indexExists := readFile(opt.CRepoRoot, indexPath)
-	readmeBase, readmeOK := readFile(opt.CRepoRoot, readmePath)
-	newService := !dirExists(serviceDir) && !indexExists
+	zhIndexBase, zhIndexExists := readFile(opt.CRepoRoot, zhIndexPath)
+	enIndexBase, enIndexExists := readFile(opt.CRepoRoot, enIndexPath)
+	zhReadmeBase, zhReadmeOK := readFile(opt.CRepoRoot, zhReadmePath)
+	enReadmeBase, enReadmeOK := readFile(opt.CRepoRoot, enReadmePath)
 
-	out := make([]model.DocFileChange, 0, len(files)+3)
-	var aiIndex *model.DocFileChange
+	zhDir := filepath.Join(opt.CRepoRoot, filepath.FromSlash(zhDocsRoot), opt.Service)
+	enDir := filepath.Join(opt.CRepoRoot, filepath.FromSlash(enDocsRoot), opt.Service)
+	newService := (!dirExists(zhDir) && !zhIndexExists) || (!dirExists(enDir) && !enIndexExists)
+
+	navPaths := map[string]struct{}{
+		zhSummaryPath: {}, enSummaryPath: {},
+		zhIndexPath: {}, enIndexPath: {},
+		zhReadmePath: {}, enReadmePath: {},
+	}
+
+	out := make([]model.DocFileChange, 0, len(files)+8)
+	var aiZhIndex, aiEnIndex *model.DocFileChange
 	for _, f := range files {
 		p := filepath.ToSlash(f.Path)
-		switch p {
-		case summaryPath:
-			// always rebuilt surgically below
-			continue
-		case readmePath:
-			continue
-		case indexPath:
-			if !newService {
-				// existing service: ignore AI rewrite; patch list below
-				continue
-			}
-			cp := f
-			aiIndex = &cp
-		default:
-			out = append(out, f)
-		}
-	}
-
-	// SUMMARY.md: always append/insert only
-	patchedSummary, err := PatchSUMMARY(summaryBase, opt.Service, label, opt.Slug, title)
-	if err != nil {
-		return nil, fmt.Errorf("patch SUMMARY: %w", err)
-	}
-	if IsDestructiveUpdate(summaryBase, patchedSummary) {
-		return nil, fmt.Errorf("refusing destructive SUMMARY patch")
-	}
-	out = append(out, model.DocFileChange{Path: summaryPath, Action: "update", Content: patchedSummary})
-
-	if newService {
-		// index.md does not exist → must create (prefer AI body; ensure list contains this practice)
-		if aiIndex != nil && strings.TrimSpace(aiIndex.Content) != "" {
-			content := aiIndex.Content
-			if !strings.Contains(content, "]("+opt.Slug+".md)") && !strings.Contains(content, "]("+opt.Slug+")") {
-				if patched, err := PatchServiceIndex(content, opt.Slug, title, oneLiner); err == nil {
-					content = patched
+		if _, isNav := navPaths[p]; isNav {
+			switch p {
+			case zhIndexPath:
+				if newService {
+					cp := f
+					aiZhIndex = &cp
+				}
+			case enIndexPath:
+				if newService {
+					cp := f
+					aiEnIndex = &cp
 				}
 			}
-			out = append(out, model.DocFileChange{Path: indexPath, Action: "create", Content: ensureTrailingNewline(content)})
-		} else {
-			return nil, fmt.Errorf("new service %s requires create of %s (missing from AI output)", opt.Service, indexPath)
+			continue
 		}
-		if readmeOK {
-			heading := opt.READMEHeading
+		out = append(out, f)
+	}
+
+	// --- Steps 3–5: English nav (defines alphabetical order) ---
+	enSummaryPatched, err := PatchSUMMARY(enSummary, opt.Service, label, opt.Slug, enTitle, EnUS.IntroLabel)
+	if err != nil {
+		return nil, fmt.Errorf("patch en SUMMARY: %w", err)
+	}
+	if IsDestructiveUpdate(enSummary, enSummaryPatched) {
+		return nil, fmt.Errorf("refusing destructive en SUMMARY patch")
+	}
+	out = append(out, model.DocFileChange{Path: enSummaryPath, Action: "update", Content: enSummaryPatched})
+
+	if newService {
+		if aiEnIndex == nil || strings.TrimSpace(aiEnIndex.Content) == "" {
+			return nil, fmt.Errorf("new service %s requires create of %s", opt.Service, enIndexPath)
+		}
+		enIdx := aiEnIndex.Content
+		if patched, err := PatchServiceIndex(enIdx, opt.Slug, enTitle, enOne, EnUS); err == nil {
+			enIdx = patched
+		}
+		out = append(out, model.DocFileChange{Path: enIndexPath, Action: "create", Content: ensureTrailingNewline(enIdx)})
+		if enReadmeOK {
+			heading := opt.EnREADMEHeading
+			if heading == "" {
+				heading = fmt.Sprintf("%s Best Practices", label)
+			}
+			blurb := opt.EnREADMEBlurb
+			if blurb == "" {
+				blurb = fmt.Sprintf("%s Terraform best practices.", label)
+			}
+			patched, err := PatchBestPracticesREADME(enReadmeBase, opt.Service, heading, blurb, EnUS)
+			if err != nil {
+				return nil, fmt.Errorf("patch en README: %w", err)
+			}
+			if IsDestructiveUpdate(enReadmeBase, patched) {
+				return nil, fmt.Errorf("refusing destructive en README patch")
+			}
+			out = append(out, model.DocFileChange{Path: enReadmePath, Action: "update", Content: patched})
+		}
+	} else {
+		if !enIndexExists {
+			return nil, fmt.Errorf("existing service missing %s", enIndexPath)
+		}
+		patched, err := PatchServiceIndex(enIndexBase, opt.Slug, enTitle, enOne, EnUS)
+		if err != nil {
+			return nil, fmt.Errorf("patch en index: %w", err)
+		}
+		if IsDestructiveUpdate(enIndexBase, patched) {
+			return nil, fmt.Errorf("refusing destructive en index patch")
+		}
+		out = append(out, model.DocFileChange{Path: enIndexPath, Action: "update", Content: patched})
+	}
+
+	// --- Steps 6–8: Chinese nav (follow English path order) ---
+	zhSummaryPatched, err := PatchSUMMARY(zhSummary, opt.Service, label, opt.Slug, zhTitle, ZhCN.IntroLabel)
+	if err != nil {
+		return nil, fmt.Errorf("patch zh SUMMARY: %w", err)
+	}
+	if IsDestructiveUpdate(zhSummary, zhSummaryPatched) {
+		return nil, fmt.Errorf("refusing destructive zh SUMMARY patch")
+	}
+	out = append(out, model.DocFileChange{Path: zhSummaryPath, Action: "update", Content: zhSummaryPatched})
+
+	if newService {
+		if aiZhIndex == nil || strings.TrimSpace(aiZhIndex.Content) == "" {
+			return nil, fmt.Errorf("new service %s requires create of %s", opt.Service, zhIndexPath)
+		}
+		zhIdx := aiZhIndex.Content
+		if patched, err := PatchServiceIndex(zhIdx, opt.Slug, zhTitle, zhOne, ZhCN); err == nil {
+			zhIdx = patched
+		}
+		out = append(out, model.DocFileChange{Path: zhIndexPath, Action: "create", Content: ensureTrailingNewline(zhIdx)})
+		if zhReadmeOK {
+			heading := opt.ZhREADMEHeading
 			if heading == "" {
 				heading = fmt.Sprintf("%s最佳实践", label)
 			}
-			blurb := opt.READMEBlurb
+			blurb := opt.ZhREADMEBlurb
 			if blurb == "" {
 				blurb = fmt.Sprintf("%s 相关 Terraform 最佳实践。", label)
 			}
-			patched, err := PatchBestPracticesREADME(readmeBase, opt.Service, heading, blurb)
+			patched, err := PatchBestPracticesREADME(zhReadmeBase, opt.Service, heading, blurb, ZhCN)
 			if err != nil {
-				return nil, fmt.Errorf("patch README: %w", err)
+				return nil, fmt.Errorf("patch zh README: %w", err)
 			}
-			if IsDestructiveUpdate(readmeBase, patched) {
-				return nil, fmt.Errorf("refusing destructive README patch")
+			if IsDestructiveUpdate(zhReadmeBase, patched) {
+				return nil, fmt.Errorf("refusing destructive zh README patch")
 			}
-			out = append(out, model.DocFileChange{Path: readmePath, Action: "update", Content: patched})
+			out = append(out, model.DocFileChange{Path: zhReadmePath, Action: "update", Content: patched})
 		}
-		return out, nil
+	} else {
+		if !zhIndexExists {
+			return nil, fmt.Errorf("existing service missing %s", zhIndexPath)
+		}
+		patched, err := PatchServiceIndex(zhIndexBase, opt.Slug, zhTitle, zhOne, ZhCN)
+		if err != nil {
+			return nil, fmt.Errorf("patch zh index: %w", err)
+		}
+		if IsDestructiveUpdate(zhIndexBase, patched) {
+			return nil, fmt.Errorf("refusing destructive zh index patch")
+		}
+		out = append(out, model.DocFileChange{Path: zhIndexPath, Action: "update", Content: patched})
 	}
 
-	// Existing service directory: only append list item in index.md
-	patchedIndex, err := PatchServiceIndex(indexBase, opt.Slug, title, oneLiner)
-	if err != nil {
-		return nil, fmt.Errorf("patch index: %w", err)
-	}
-	if IsDestructiveUpdate(indexBase, patchedIndex) {
-		return nil, fmt.Errorf("refusing destructive index patch")
-	}
-	out = append(out, model.DocFileChange{Path: indexPath, Action: "update", Content: patchedIndex})
 	return out, nil
 }
 
@@ -160,24 +245,20 @@ func TitleFromFiles(files []model.DocFileChange, docsRoot, service, slug string)
 	return slug
 }
 
-// LoadBaselines returns current navigation files for prompt injection.
-// SUMMARY.md is always expected; index/README only when present.
-func LoadBaselines(cRepoRoot, docsRoot, service string) map[string]string {
-	if docsRoot == "" {
-		docsRoot = "docs/zh-cn/best-practices"
-	}
+// LoadBaselines returns zh-cn + en-us navigation files for prompt injection.
+func LoadBaselines(cRepoRoot, _ignoredDocsRoot, service string) map[string]string {
 	out := map[string]string{}
-	summaryPath := filepath.ToSlash(filepath.Join(filepath.Dir(docsRoot), "SUMMARY.md"))
-	if s, ok := readFile(cRepoRoot, summaryPath); ok {
-		out[summaryPath] = s
-	}
-	indexPath := filepath.ToSlash(filepath.Join(docsRoot, service, "index.md"))
-	if s, ok := readFile(cRepoRoot, indexPath); ok {
-		out[indexPath] = s
-	}
-	readmePath := filepath.ToSlash(filepath.Join(docsRoot, "README.md"))
-	if s, ok := readFile(cRepoRoot, readmePath); ok {
-		out[readmePath] = s
+	for _, p := range []string{
+		"docs/zh-cn/SUMMARY.md",
+		"docs/en-us/SUMMARY.md",
+		filepath.ToSlash(filepath.Join(zhDocsRoot, service, "index.md")),
+		filepath.ToSlash(filepath.Join(enDocsRoot, service, "index.md")),
+		filepath.ToSlash(filepath.Join(zhDocsRoot, "README.md")),
+		filepath.ToSlash(filepath.Join(enDocsRoot, "README.md")),
+	} {
+		if s, ok := readFile(cRepoRoot, p); ok {
+			out[p] = s
+		}
 	}
 	return out
 }

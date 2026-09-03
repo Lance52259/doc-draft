@@ -37,6 +37,7 @@ func TestBuildPRBody(t *testing.T) {
 		"`create` `docs/zh-cn/best-practices/rds/basic_instance.md`",
 		"## Review checklist",
 		"docs(rds): support new best practice for",
+		"English body:",
 	}
 	for _, n := range needles {
 		if !strings.Contains(body, n) {

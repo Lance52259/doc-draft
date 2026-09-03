@@ -23,11 +23,12 @@ const outputSchemaHint = `你必须只输出一个 JSON 对象（不要 Markdown
   ]
 }
 约束：
-1. path 不得包含 ..，且必须落在允许的文档目录下
+1. path 不得包含 ..，且必须落在 docs/zh-cn/ 或 docs/en-us/ 下
 2. content 为完整文档正文
 3. 不要在 JSON 外输出任何文字
-4. 优先只输出实践正文的 create；SUMMARY.md / 已有 index.md / README.md 导航由编排层手术式补丁，除非你能在提供的基线上仅插入新行且不删改任何已有条目
-5. 严禁把 SUMMARY.md 重写成短目录或改掉「# Summary」标题`
+4. 必须同时 create 中文与英文实践正文（同一 {service}/{practice}）
+5. 新服务时还须 create 中英 index.md；SUMMARY/README 导航由编排层按「英文定序、中文跟随」补丁，禁止整文件重写 SUMMARY
+6. 严禁把 SUMMARY.md 重写成短目录或改掉「# Summary」标题`
 
 // PromptTemplates assembles chat messages for generation.
 type PromptTemplates struct {
@@ -78,7 +79,9 @@ func (p *PromptTemplates) BuildMessages(in BuildMessagesInput) ([]provider.ChatM
 
 ## 目标
 - practice_id: %s
-- 建议写入路径: %s
+- 建议写入路径（中文正文）: %s
+- 英文正文对称路径: docs/en-us/best-practices/{service}/{practice}.md
+- 处理顺序: 中文正文 → 英文正文 → 英文导航(字母序) → 中文导航(跟随英文)
 - C 仓文档根: %s
 
 ## 文档模板（请在结构上对齐，可按源内容充实）

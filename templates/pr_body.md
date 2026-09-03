@@ -26,16 +26,16 @@ A new best practice appeared under B repo `examples/` that is not yet covered in
 
 ### Document structure (Skill / template)
 
-- [ ] Body path is `docs/zh-cn/best-practices/{service}/{practice}.md`
-- [ ] Required sections present: application scenarios, related resources/data sources, steps, references
-- [ ] HCL and parameter notes come from source scripts; no invented resources/parameters
+- [ ] Chinese body: `docs/zh-cn/best-practices/{service}/{practice}.md`
+- [ ] English body: `docs/en-us/best-practices/{service}/{practice}.md`
+- [ ] Required sections present in both locales; HCL matches source scripts
 - [ ] No real AK/SK/passwords (placeholders are OK)
 
-### Navigation and index
+### Navigation and index (EN first, then ZH follows EN order)
 
-- [ ] Updated (or confirmed N/A) `docs/zh-cn/best-practices/{service}/index.md` practice list (filename ascending)
-- [ ] Updated `docs/zh-cn/SUMMARY.md`
-- [ ] If new service: added `index.md` and updated `docs/zh-cn/best-practices/README.md` navigation
+- [ ] Updated EN `index.md` / `SUMMARY.md` (and README if new service)
+- [ ] Updated ZH `index.md` / `SUMMARY.md` (and README if new service) aligned with EN order
+- [ ] No destructive rewrite of either `SUMMARY.md`
 
 ### Before merge
 
