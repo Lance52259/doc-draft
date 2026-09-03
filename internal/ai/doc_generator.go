@@ -13,6 +13,7 @@ import (
 	"github.com/Lance52259/doc-draft/internal/config"
 	"github.com/Lance52259/doc-draft/internal/mapping"
 	"github.com/Lance52259/doc-draft/internal/model"
+	"github.com/Lance52259/doc-draft/internal/nav"
 )
 
 var jsonBlock = regexp.MustCompile("(?s)```(?:json)?\\s*(\\{.*?\\})\\s*```")
@@ -189,7 +190,7 @@ func ValidatePaths(files []model.DocFileChange, allowlist []string) error {
 	return nil
 }
 
-func (g *DocGenerator) Generate(ctx context.Context, practice model.Practice, practiceDir string) (*model.GenerateResult, error) {
+func (g *DocGenerator) Generate(ctx context.Context, practice model.Practice, practiceDir, cRepoRoot string) (*model.GenerateResult, error) {
 	targetPath, skillID, templateName := ResolveTargetPath(g.Settings, practice)
 	skill, err := g.Skills.Load(skillID)
 	if err != nil {
@@ -199,7 +200,20 @@ func (g *DocGenerator) Generate(ctx context.Context, practice model.Practice, pr
 	if err != nil {
 		return nil, err
 	}
-	messages, err := g.Prompts.BuildMessages(skill, practice, sourceContext, targetPath, templateName, g.Settings.CDocsRoot)
+
+	resolver := mapping.NewResolver(g.Settings.Mapping, g.Settings.CDocsRoot)
+	doc := resolver.Resolve(practice)
+	baselines := nav.LoadBaselines(cRepoRoot, g.Settings.CDocsRoot, doc.Service)
+
+	messages, err := g.Prompts.BuildMessages(BuildMessagesInput{
+		Skill:         skill,
+		Practice:      practice,
+		SourceContext: sourceContext,
+		TargetPath:    targetPath,
+		TemplateName:  templateName,
+		DocsRoot:      g.Settings.CDocsRoot,
+		NavBaselines:  baselines,
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -224,6 +238,16 @@ func (g *DocGenerator) Generate(ctx context.Context, practice model.Practice, pr
 			continue
 		}
 		if err := ValidatePaths(files, g.Settings.PathAllowlist); err != nil {
+			lastErr = err
+			continue
+		}
+		files, err = nav.ApplyToFiles(files, nav.ApplyOptions{
+			CRepoRoot: cRepoRoot,
+			DocsRoot:  g.Settings.CDocsRoot,
+			Service:   doc.Service,
+			Slug:      doc.Slug,
+		})
+		if err != nil {
 			lastErr = err
 			continue
 		}

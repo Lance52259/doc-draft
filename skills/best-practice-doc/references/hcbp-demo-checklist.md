@@ -5,17 +5,26 @@
 - [templates/best_practice.md](https://github.com/Lance52259/hcbp-demo/blob/master/templates/best_practice.md)
 - [templates/category_index.md](https://github.com/Lance52259/hcbp-demo/blob/master/templates/category_index.md)
 
-## 已有服务 + 新实践
+## 共性
 
 1. `docs/zh-cn/best-practices/{service}/{practice}.md` — create  
-2. `docs/zh-cn/best-practices/{service}/index.md` — update「最佳实践列表」（文件名升序）  
-3. `docs/zh-cn/SUMMARY.md` — update 增加实践链接  
+2. `docs/zh-cn/SUMMARY.md` — **一定存在**；只在正确位置插入链接（禁止整文件重写）
 
-## 新服务 + 新实践
+## 服务目录已存在
 
-1. 上表三项，其中 `index.md` 为 create  
-2. `docs/zh-cn/best-practices/README.md` — update「文档导航」（服务链接英文升序）  
-3. `SUMMARY.md` — 同时增加服务目录节点与简介节点  
+1. `docs/zh-cn/best-practices/{service}/index.md` — **仅**在最佳实践列表中追加本实践  
+2. 不改 `best-practices/README.md`
+
+## 服务目录首次创建
+
+1. `docs/zh-cn/best-practices/{service}/index.md` — **create**（此时文件尚不存在）  
+2. `docs/zh-cn/best-practices/README.md` — 在文档导航正确位置插入本服务入口  
+3. `SUMMARY.md` — 插入服务节点 + 简介 + 本实践
+
+## 导航红线
+
+- **禁止**重写整个 `SUMMARY.md`
+- doc-craft 编排层对 SUMMARY / 已有 index / README 做确定性插入
 
 ## 示例对照
 

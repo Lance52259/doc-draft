@@ -150,7 +150,7 @@ func runGenerate(args []string) int {
 	gen := ai.NewDocGenerator(s, p)
 	for _, item := range selected {
 		dir := filepath.Join(repoCtx.B.LocalPath, item.SourcePath)
-		result, err := gen.Generate(context.Background(), item, dir)
+		result, err := gen.Generate(context.Background(), item, dir, repoCtx.C.LocalPath)
 		if err != nil {
 			log.Printf("generate %s: %v", item.PracticeID, err)
 			return 1
@@ -258,7 +258,7 @@ func runPipeline(args []string) int {
 		}
 
 		dir := filepath.Join(repoCtx.B.LocalPath, item.SourcePath)
-		result, err := gen.Generate(context.Background(), item, dir)
+		result, err := gen.Generate(context.Background(), item, dir, repoCtx.C.LocalPath)
 		if err != nil {
 			pipeline.Errors = append(pipeline.Errors, fmt.Sprintf("%s: %v", item.PracticeID, err))
 			continue

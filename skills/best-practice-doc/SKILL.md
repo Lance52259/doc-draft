@@ -1,7 +1,7 @@
 ---
 name: best-practice-doc
 description: 从 terraform-provider-huaweicloud/examples 生成文档并 PR 到 Lance52259/hcbp-demo
-version: "0.2.3"
+version: "0.2.5"
 source_repo: https://github.com/huaweicloud/terraform-provider-huaweicloud
 source_repo_slug: huaweicloud/terraform-provider-huaweicloud
 source_examples: https://github.com/huaweicloud/terraform-provider-huaweicloud/tree/master/examples
@@ -39,20 +39,35 @@ target_default_branch: master
 - `{practice}`：实践文件名（无 `.md`），优先对齐 C 仓既有风格（下划线、产品语义名）；可用 `practice_aliases` 覆盖。detect 时会按别名 + 去分隔符模糊匹配判断是否已对接。
 - 正文结构、固定标题 **不得自行增减章节标题**；严格按模板章节顺序。
 
-### B. 服务目录已存在时还需
+### B. 导航规则（按服务目录是否已存在分支）
+
+`docs/zh-cn/SUMMARY.md` **一定存在**，任何情况下都只做**定点插入**，禁止整文件重写。
+
+#### 服务目录已存在（`docs/zh-cn/best-practices/{service}/` 已有）
 
 | 动作 | 路径 | 改什么 |
 |------|------|--------|
-| **update** | `docs/zh-cn/best-practices/{service}/index.md` | 在 `## 最佳实践列表` 中按 **文件名英文字母升序** 插入一条：`* [中文标题]({practice}.md) - 一句话说明。`（链接不以 `./` 开头） |
-| **update** | `docs/zh-cn/SUMMARY.md` | 在对应服务小节下增加实践条目（与同级实践并列；若缺服务「简介」节点则一并补上） |
+| **update** | `docs/zh-cn/best-practices/{service}/index.md` | **仅**在「最佳实践列表」描述中按文件名升序插入本实践一条链接说明 |
+| **update** | `docs/zh-cn/SUMMARY.md` | **仅**在该服务小节的正确位置插入本实践一行导航链接 |
 
-### C. 服务目录尚不存在时还需（首次接入该服务）
+不改 `best-practices/README.md`（服务已在文档导航中）。
+
+#### 服务目录首次创建（尚无 `{service}/`）
 
 | 动作 | 路径 | 改什么 |
 |------|------|--------|
-| **create** | `docs/zh-cn/best-practices/{service}/index.md` | 按 `templates/category_index_template.md`（对齐 C 仓 `templates/category_index.md`）生成分类简介 |
-| **update** | `docs/zh-cn/best-practices/README.md` | 在 `## 文档导航` 按 **链接英文升序** 增加：`### [{服务中文名}（{简称}）最佳实践]({service}/index.md)` + 一段简介 |
-| **update** | `docs/zh-cn/SUMMARY.md` | 增加服务节点：`* [{简称}](best-practices/{service}/)`、`* [简介](best-practices/{service}/index.md)`，以及本实践链接；服务节点在 SUMMARY 中按现有服务简称字母序插入 |
+| **create** | `docs/zh-cn/best-practices/{service}/index.md` | 目录不存在时 `index.md` 也不存在，按分类模板**新建**（含简介与本实践列表项） |
+| **update** | `docs/zh-cn/best-practices/README.md` | **仅**在「文档导航」正确位置插入本服务入口（产品名 + 链接 + 一段简介） |
+| **update** | `docs/zh-cn/SUMMARY.md` | **仅**在「最佳实践」下按服务目录名字母序插入：服务节点 + 简介 + 本实践链接 |
+
+### C. 导航文件硬性规则 — 必须遵守
+
+> 历史失败模式：把 `SUMMARY.md` 整文件重写成十几行（如把 `# Summary` 改成 `# 目录`）。**严禁再次发生。**
+
+1. **`SUMMARY.md` 必存在、只追加**：永远基于 C 仓当前全文，在正确位置插入新行；不得删除、改写、重排已有条目；不得改标题。
+2. **`index.md`**：目录已存在 → 只追加列表项；目录首次创建 → **create** 新文件（不要去“更新”一个不存在的文件）。
+3. **`README.md` 文档导航**：仅服务首次接入时插入一块；已有服务不要动。
+4. **优先编排层补丁**：doc-craft 对 SUMMARY / 已有 index 列表 / README 做确定性插入；AI 优先只生成实践正文，新服务时再 create `index.md`。
 
 ### D. 不要做的事
 
@@ -62,6 +77,7 @@ target_default_branch: master
 - 不要在文档中写入真实 AK/SK/密码；示例使用占位符。
 - 跳转链接的 Markdown 括号使用 **半角** `()`。
 - 每个生成的 `.md` **文件末尾保留一个空行**。
+- 不要用「精简版目录」替换完整 `SUMMARY.md`。
 
 ---
 
@@ -74,7 +90,7 @@ target_default_branch: master
 | `practice_id` = `examples/ecs/basic` | 正文 → `docs/zh-cn/best-practices/ecs/basic.md`（若 C 仓已有约定别名如 `simple_instance.md`，以现有命名或调用方 `target_path` 为准） |
 | 服务目录是否存在 | 扫描 C 仓是否已有 `docs/zh-cn/best-practices/{service}/` |
 
-若调用方给出「建议写入路径」，优先采用；同时仍须按上表补齐 index / README / SUMMARY 的 **update** 文件。
+若调用方给出「建议写入路径」，优先采用；同时仍须按上表补齐 index / README / SUMMARY 的导航更新（优先由编排层补丁）。
 
 ---
 
@@ -121,36 +137,27 @@ HCL 注释风格：
 ## 硬性约束（输出）
 
 1. **只输出一个 JSON 对象**，不要 Markdown 围栏或前后解释。
-2. `files[]` 必须覆盖本节「必须改动」清单中的全部 create/update；`action` 为 `create` 或 `update`。
-3. `update` 的 `content` 必须是 **更新后的完整文件正文**（不是 diff 片段）。
+2. `files[]` **至少**包含实践正文的 `create`；新服务时包含服务 `index.md` 的 `create`。
+3. 导航类 `update`（`SUMMARY.md` / 已有 `index.md` / `README.md`）可选；若输出，`content` 必须是 **基线全文 + 最小插入**后的完整正文，**禁止**缩成短目录。
 4. `path` 相对 C 仓根，禁止 `..`，且落在 `docs/` 下。
 5. 参数、资源类型、依赖关系必须来自源 HCL，禁止臆造。
 6. 简体中文正文；专有名词可保留英文。
+7. `summary` 用 **英文** 一句话（供 PR 说明）。
 
 ## 输出 schema
 
 ```json
 {
   "practice_id": "examples/ecs/basic",
-  "summary": "新增 ECS 基础实例最佳实践文档并更新导航",
+  "summary": "Add ECS basic instance best-practice doc and navigation entries",
   "files": [
     {
       "path": "docs/zh-cn/best-practices/ecs/basic.md",
       "action": "create",
-      "content": "……完整 markdown……\n"
-    },
-    {
-      "path": "docs/zh-cn/best-practices/ecs/index.md",
-      "action": "update",
-      "content": "……完整 markdown……\n"
-    },
-    {
-      "path": "docs/zh-cn/SUMMARY.md",
-      "action": "update",
       "content": "……完整 markdown……\n"
     }
   ]
 }
 ```
 
-新建服务时，`files` 还需包含 `index.md`（create）、`docs/zh-cn/best-practices/README.md`（update）及 SUMMARY 中的服务节点。
+可选（仅当基线已提供且能安全插入时）再附带导航 `update`。新建服务时，`files` 还应包含服务 `index.md`（create）。`SUMMARY.md` / `README.md` 导航优先由 doc-craft 编排层补丁，不强制模型输出。
