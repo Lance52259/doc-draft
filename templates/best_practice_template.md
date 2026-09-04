@@ -40,6 +40,7 @@ data.huaweicloud_xxx
 
 ```hcl
 # 未声明 region 时必须用完整缺省继承句：在指定region（region参数缺省时默认继承当前provider块中所指定的region）下…
+# 仅在本步「首次引入」时声明 variable；若前序步骤已声明同名变量，此处禁止再写 variable 块，只引用 var.xxx
 variable "example_name" {
   description = "…"
   type        = string

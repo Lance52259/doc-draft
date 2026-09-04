@@ -1,7 +1,7 @@
 ---
 name: best-practice-doc
 description: 从 terraform-provider-huaweicloud/examples 生成中英双语文档并 PR 到 Lance52259/hcbp-demo
-version: "0.3.6"
+version: "0.3.7"
 source_repo: https://github.com/huaweicloud/terraform-provider-huaweicloud
 source_repo_slug: huaweicloud/terraform-provider-huaweicloud
 source_examples: https://github.com/huaweicloud/terraform-provider-huaweicloud/tree/master/examples
@@ -115,6 +115,7 @@ target_default_branch: master
 - 正文 H1 / index 列表标题禁止写成 `AAD黑白名单最佳实践`、`AAD Black/White Lists`（缺 Deploy/部署、或中文带「最佳实践」后缀）；须对齐 `部署…` / `Deploy …`。
 - 无 data source 时禁止导语写「资源和数据源」且禁止空的 `### 数据源` 小节。
 - tfvars 步骤标题必须含「（可选）」/ `(Optional)`。
+- 同一 `variable "name"` 不得在多个操作步骤中重复声明（后步只引用 `var.name`）；生成后须自检去重。
 
 ---
 
@@ -167,14 +168,19 @@ target_default_branch: master
 ### 操作步骤硬性要求
 
 1. **脚本准备**（固定文案，含 `prepare_before_deploy.md` 链接）
-2. **按源码顺序**逐步创建 resource/data；**每个步骤的 HCL 块内须内联本步用到的 `variable` 声明**（对齐 Anti-DDoS/ECS），再写 `resource`/`data`。即使源码把变量放在 `variables.tf`，文档步骤中仍应展开内联（object 类型变量可整段内联一个 `variable "instance_config"`）。
-3. **参数说明**：对块内主要参数逐条说明；引用变量时尽量写清「通过引用输入变量 xxx 进行赋值」（对齐 Anti-DDoS）。
-4. **region 注释**（HCL 上方）：  
+2. **按源码顺序**逐步创建 resource/data；**每个步骤的 HCL 块内须内联「本步首次引入」的 `variable` 声明**（对齐 Anti-DDoS/ECS），再写 `resource`/`data`。即使源码把变量放在 `variables.tf`，文档步骤中仍应展开内联（object 类型变量可整段内联一个 `variable "instance_config"`）。
+3. **跨步骤变量去重（生成后自检，必做）**：全文所有操作步骤 HCL 中，同一 `variable "name"` **只允许出现一次**。  
+   - 在**第一次**用到该变量的步骤中声明；后续步骤（如黑名单步骤 3、白名单步骤 4 都依赖 `instance_id`）**只引用** `var.xxx`，**禁止再次粘贴**整段 `variable "xxx" { ... }`。  
+   - 生成中英文正文后必须自检：统计每个 `variable "…"` 出现次数；若 >1，删掉后出现的重复声明，仅保留首次。  
+   - **错误示例（禁止）：** 步骤 2 已声明 `variable "instance_id"`，步骤 3、4 的 HCL 里再次完整声明 `variable "instance_id"`。  
+   - **正确做法：** 步骤 2 声明一次；步骤 3/4 的 HCL 仅含 `resource`（及本步**新**引入的变量，如 `blacklist_ips` / `whitelist_ips`）。
+4. **参数说明**：对块内主要参数逐条说明；引用变量时尽量写清「通过引用输入变量 xxx 进行赋值」（对齐 Anti-DDoS）。仅说明本步 resource 参数；勿因去重而在后续步骤重复粘贴已在前步说明过的 variable 块。
+5. **region 注释**（HCL 上方）：  
    - 资源/数据源声明了 `region` → `# 在指定region下…`  
    - **未声明 `region`** → 必须用完整句：`# 在指定region（region参数缺省时默认继承当前provider块中所指定的region）下…`  
    - **禁止**无 region 参数时只写短句 `# 在指定region下创建…`
-5. **预设入参步骤标题必须为**：`### N. 预设资源部署所需的入参（可选）`（**「（可选）」不可省略**）
-6. **最后一步**：`### N. 初始化并应用Terraform配置`（init / plan / apply / show）
+6. **预设入参步骤标题必须为**：`### N. 预设资源部署所需的入参（可选）`（**「（可选）」不可省略**）
+7. **最后一步**：`### N. 初始化并应用Terraform配置`（init / plan / apply / show）
 
 ### 参考信息
 
@@ -225,13 +231,15 @@ Use clear product display names, e.g. `[Advanced Anti-DDoS Instance (huaweicloud
 ### Operation Steps
 
 1. Script Preparation (with link to `prepare_before_deploy.md`)
-2. Per-resource steps: **inline `variable` blocks** used by that step inside the HCL fence, then `resource`/`data` (same as Anti-DDoS/ECS docs)
-3. Region comment above HCL: if no `region` argument, use  
-   `# Create … in the specified region (if the region parameter is omitted, it inherits the region specified in the current provider block) by default`
-4. **tfvars step title must be:**  
+2. Per-resource steps: **inline `variable` blocks only for variables first introduced in that step**, then `resource`/`data` (same as Anti-DDoS/ECS docs)
+3. **Deduplicate variables across steps (mandatory self-check after drafting):** each `variable "name"` may appear **once** in the whole practice doc. Declare it in the first step that needs it; later steps (e.g. blacklist step 3 and whitelist step 4 both using `instance_id`) must **only reference** `var.xxx` — **do not paste** the `variable` block again. If any name appears more than once, delete the later copies.
+4. Region comment above HCL: if no `region` argument, use  
+   `# Create … in the specified region (if the region parameter is omitted, it inherits the region specified in the current provider block)`  
+   （勿在句末多余堆砌 `by default`）
+5. **tfvars step title must be:**  
    `### N. Preset Input Parameters Required for Resource Deployment (Optional)`  
    （`Required` + `(Optional)` 均不可省；禁止写成 `Preset Input Parameters for Resource Deployment`）
-5. Final step: `### N. Initialize and Apply Terraform Configuration`
+6. Final step: `### N. Initialize and Apply Terraform Configuration`
 
 ### Reference Information
 

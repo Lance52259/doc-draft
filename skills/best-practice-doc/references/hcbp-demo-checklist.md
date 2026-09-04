@@ -31,6 +31,7 @@
 - 无 data source：导语用「主要资源」/ `main resources`，禁止空 `### 数据源`
 - tfvars 步骤标题含「（可选）」/ `Required … (Optional)`
 - 步骤 HCL 内联 `variable`；无 region 参数时用完整 region 缺省继承注释
+- 同一 `variable "name"` 全文仅声明一次；后续步骤禁止重复粘贴（生成后自检去重）
 - 中英 `best-practices/README.md` 新服务简介须从 index「什么是 / What is」首段截取，禁止 Terraform 占位句
 - 新建 `index.md`：What is ≥2 段；Overview/简述必须两段固定套话；List 含导语 + `* [与 H1 一致的标题](file.md) - 说明`；参考资料第二条为 Terraform 官方文档（非 Provider）
 - 禁止 AAD 式精简 index（一句 Overview、裸链接列表、Reference 放 Provider）
