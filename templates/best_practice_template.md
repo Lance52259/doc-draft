@@ -1,10 +1,14 @@
-# {实践中文标题}
+# 部署{场景简述}
+
+（H1 必须以「部署」开头，且不以「最佳实践」结尾。正确：`# 部署黑白名单`；错误：`# AAD黑白名单最佳实践`。）
 
 ## 应用场景
 
-{结合华为云产品说明与本实践目标，用 2～4 句说明场景与本实践将完成什么。勿保留元注释括号。}
+{结合华为云产品说明与本实践目标，用 2～4 句说明场景。第二段起句用「本最佳实践将介绍如何使用Terraform…」。勿保留元注释括号。}
 
 ## 相关资源/数据源
+
+（无 data source 时导语改为「本最佳实践涉及以下主要资源：」，并删除下面的「### 数据源」整节。）
 
 本最佳实践涉及以下主要资源和数据源：
 
@@ -35,15 +39,23 @@ data.huaweicloud_xxx
 在TF文件（如main.tf）中添加以下脚本：
 
 ```hcl
-# 功能说明注释（region 有/无声明时使用约定句式）
-data "huaweicloud_xxx" "test" {
+# 未声明 region 时必须用完整缺省继承句：在指定region（region参数缺省时默认继承当前provider块中所指定的region）下…
+variable "example_name" {
+  description = "…"
+  type        = string
+}
+
+resource "huaweicloud_xxx" "test" {
+  name = var.example_name
 }
 ```
 
 **参数说明**：
-- **param**：说明
+- **name**：通过引用输入变量 example_name 进行赋值
 
 ### n. 预设资源部署所需的入参（可选）
+
+（标题中的「（可选）」不可省略。）
 
 本实践中，部分资源、数据源使用了输入变量对配置内容进行赋值，这些输入参数在后续部署时需要手工输入。
 同时，Terraform提供了通过`tfvars`文件预设这些配置的方法，可以避免每次执行时重复输入。
@@ -82,6 +94,6 @@ vpc_name = "example-vpc"
 
 - [华为云{产品}产品文档](https://support.huaweicloud.com/{product}/index.html)
 - [华为云Provider文档](https://registry.terraform.io/providers/huaweicloud/huaweicloud/latest/docs)
-- [{实践}最佳实践源码参考](https://github.com/huaweicloud/terraform-provider-huaweicloud/tree/master/examples/{service}/{practice})
+- [{服务名}{场景}最佳实践源码参考](https://github.com/huaweicloud/terraform-provider-huaweicloud/tree/master/examples/{service}/{practice})
 
-（英文正文对应条目锚文本必须为：`Best Practice Source Code Reference For {English practice title}`，例如 `Best Practice Source Code Reference For AAD Black/White Lists`；禁止写成 `{title} Best Practice Source Code Reference`。）
+（英文正文 H1 必须为 `Deploy {Scene}`；对应源码锚文本必须为：`Best Practice Source Code Reference For Deploy {Scene}`。）

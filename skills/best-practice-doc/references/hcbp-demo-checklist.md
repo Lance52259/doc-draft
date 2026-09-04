@@ -25,10 +25,14 @@
 - 中英 `SUMMARY.md` 一定存在，只定点插入，禁止整文件重写
 - 禁止只生成中文、省略英文
 - 禁止先改中文导航再改英文导航
-- 英文源码参考链接锚文本：`Best Practice Source Code Reference For {title}`（勿颠倒语序）
-- 中文源码参考链接锚文本：`{实践中文标题}最佳实践源码参考`
+- 英文源码参考链接锚文本：`Best Practice Source Code Reference For {H1 title}`（含 `Deploy …`；勿颠倒语序）
+- 中文源码参考链接锚文本：`{服务名}{场景}最佳实践源码参考`（「最佳实践」只出现在源码锚文本，不出现在正文 H1）
+- 正文 H1 / index 列表：中文 `部署…`、英文 `Deploy …`；禁止 `AAD黑白名单最佳实践` / `AAD Black/White Lists`
+- 无 data source：导语用「主要资源」/ `main resources`，禁止空 `### 数据源`
+- tfvars 步骤标题含「（可选）」/ `Required … (Optional)`
+- 步骤 HCL 内联 `variable`；无 region 参数时用完整 region 缺省继承注释
 - 中英 `best-practices/README.md` 新服务简介须从 index「什么是 / What is」首段截取，禁止 Terraform 占位句
-- 新建 `index.md`：What is ≥2 段；Overview/简述必须两段固定套话；List 含导语 + `* [标题](file.md) - 说明`；参考资料第二条为 Terraform 官方文档（非 Provider）
+- 新建 `index.md`：What is ≥2 段；Overview/简述必须两段固定套话；List 含导语 + `* [与 H1 一致的标题](file.md) - 说明`；参考资料第二条为 Terraform 官方文档（非 Provider）
 - 禁止 AAD 式精简 index（一句 Overview、裸链接列表、Reference 放 Provider）
 
 ## 示例对照

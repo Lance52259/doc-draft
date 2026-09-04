@@ -1,7 +1,7 @@
 ---
 name: best-practice-doc
 description: 从 terraform-provider-huaweicloud/examples 生成中英双语文档并 PR 到 Lance52259/hcbp-demo
-version: "0.3.5"
+version: "0.3.6"
 source_repo: https://github.com/huaweicloud/terraform-provider-huaweicloud
 source_repo_slug: huaweicloud/terraform-provider-huaweicloud
 source_examples: https://github.com/huaweicloud/terraform-provider-huaweicloud/tree/master/examples
@@ -112,6 +112,9 @@ target_default_branch: master
 - 中文 / 英文 `best-practices/README.md` 新增服务条目的简介必须从对应 `index.md` 的「什么是 / What is」首段截取，  
   禁止 `AAD 相关 Terraform 最佳实践。` / `AAD Terraform best practices.` 等占位句。
 - 新建服务的 `index.md` 禁止精简版（单段 What is、一句 Overview、无列表导语/无条目说明、参考资料写成 Provider 文档）。
+- 正文 H1 / index 列表标题禁止写成 `AAD黑白名单最佳实践`、`AAD Black/White Lists`（缺 Deploy/部署、或中文带「最佳实践」后缀）；须对齐 `部署…` / `Deploy …`。
+- 无 data source 时禁止导语写「资源和数据源」且禁止空的 `### 数据源` 小节。
+- tfvars 步骤标题必须含「（可选）」/ `(Optional)`。
 
 ---
 
@@ -128,52 +131,121 @@ target_default_branch: master
 
 ## 中文正文结构（步骤 1，固定标题顺序）
 
-对齐 `docs/zh-cn/best-practices/ecs/simple_instance.md` 与 `templates/best_practice_template.md`：
+对齐 `docs/zh-cn/best-practices/anti-ddos/basic.md`、`ecs/simple_instance.md` 与 `templates/best_practice_template.md`。
 
-1. `# {实践中文标题}`
+### 标题与命名（与现网一致）
+
+- **H1**：`# 部署{场景简述}`  
+  - **正确：** `# 部署基础防护`、`# 部署基础实例`、`# 部署黑白名单`  
+  - **错误（禁止，PR #3 曾出现）：** `# AAD黑白名单最佳实践`（勿以服务缩写开头；**H1 不要以「最佳实践」结尾**）
+- **index 列表 / SUMMARY 实践行标题**：与正文 **H1 全文一致**（含「部署」；不含「最佳实践」后缀）
+- **应用场景**第二段起句：用 `本最佳实践将介绍如何使用Terraform…`（不要写成「本实践将介绍」）
+
+### 章节顺序
+
+1. `# 部署{场景简述}`
 2. `## 应用场景`
 3. `## 相关资源/数据源`
-   - 固定句：`本最佳实践涉及以下主要资源和数据源：`
-   - `### 数据源` / `### 资源` / `### 资源/数据源依赖关系`
-4. `## 操作步骤`（含脚本准备、逐步 HCL、可选 tfvars、init/plan/apply/show）
+4. `## 操作步骤`
 5. `## 参考信息`
-   - 华为云对应产品文档 index
-   - 固定：`[华为云Provider文档](https://registry.terraform.io/providers/huaweicloud/huaweicloud/latest/docs)`
-   - 源码目录链接，锚文本固定格式：`[{实践中文标题}最佳实践源码参考](https://github.com/huaweicloud/terraform-provider-huaweicloud/tree/master/examples/{b_service}/{b_practice})`  
-     - **正确示例：** `[AAD黑白名单最佳实践源码参考](...)`、`[Anti-DDoS基础防护最佳实践源码参考](...)`  
-     - **错误示例（禁止）：** `Best Practice Source Code Reference For ...`（中文文档勿用英文锚文本）、`源码参考`（过于简略）
 
-HCL 注释：声明了 `region` 写「在指定 region 下…」；否则写「在指定 region（region 参数缺省时默认继承当前 provider 块中所指定的 region）下…」。
+### 相关资源/数据源（按源码实际情况二选一）
+
+**有 data source 时**（对齐 ECS）：
+
+- 导语固定：`本最佳实践涉及以下主要资源和数据源：`
+- 必须含小节：`### 数据源` → `### 资源` → `### 资源/数据源依赖关系`
+
+**无 data source 时**（对齐 Anti-DDoS；AAD 黑白名单属此类）：
+
+- 导语固定：`本最佳实践涉及以下主要资源：`（**禁止**写「资源和数据源」）
+- **不要**输出空的 `### 数据源`
+- 只保留：`### 资源` → `### 资源/数据源依赖关系`（依赖树标题仍用此固定名）
+
+资源链接显示名用产品中文名 + resource type，如 `[DDoS高防实例（huaweicloud_aad_instance）](...)`。
+
+### 操作步骤硬性要求
+
+1. **脚本准备**（固定文案，含 `prepare_before_deploy.md` 链接）
+2. **按源码顺序**逐步创建 resource/data；**每个步骤的 HCL 块内须内联本步用到的 `variable` 声明**（对齐 Anti-DDoS/ECS），再写 `resource`/`data`。即使源码把变量放在 `variables.tf`，文档步骤中仍应展开内联（object 类型变量可整段内联一个 `variable "instance_config"`）。
+3. **参数说明**：对块内主要参数逐条说明；引用变量时尽量写清「通过引用输入变量 xxx 进行赋值」（对齐 Anti-DDoS）。
+4. **region 注释**（HCL 上方）：  
+   - 资源/数据源声明了 `region` → `# 在指定region下…`  
+   - **未声明 `region`** → 必须用完整句：`# 在指定region（region参数缺省时默认继承当前provider块中所指定的region）下…`  
+   - **禁止**无 region 参数时只写短句 `# 在指定region下创建…`
+5. **预设入参步骤标题必须为**：`### N. 预设资源部署所需的入参（可选）`（**「（可选）」不可省略**）
+6. **最后一步**：`### N. 初始化并应用Terraform配置`（init / plan / apply / show）
+
+### 参考信息
+
+- 华为云对应产品文档 index
+- 固定：`[华为云Provider文档](https://registry.terraform.io/providers/huaweicloud/huaweicloud/latest/docs)`
+- 源码目录链接，锚文本：`[{服务或产品名}{场景简述}最佳实践源码参考](https://github.com/huaweicloud/terraform-provider-huaweicloud/tree/master/examples/{b_service}/{b_practice})`  
+  - **正确：** `[Anti-DDoS基础防护最佳实践源码参考](...)`、`[AAD黑白名单最佳实践源码参考](...)`  
+  - **错误：** 英文锚文本、仅写 `源码参考`  
+  - 注意：源码锚文本可含服务名 + 场景 +「最佳实践源码参考」；**不等于**把「最佳实践」写进正文 H1
 
 ---
 
 ## 英文正文结构（步骤 2，固定标题顺序）
 
-对齐 `docs/en-us/best-practices/ecs/simple_instance.md` / `anti-ddos/basic.md`（与中文镜像，标题用英文）：
+对齐 `docs/en-us/best-practices/anti-ddos/basic.md`、`ecs/simple_instance.md`（与中文镜像）。
 
-1. `# {English practice title}`（如：Deploy Basic Instance）
+### Title and naming
+
+- **H1**：`# Deploy {Scene}` — **must start with `Deploy`**  
+  - **Correct:** `# Deploy Basic Protection`、`# Deploy Basic Instance`、`# Deploy Black/White Lists`  
+  - **Wrong (forbidden):** `# AAD Black/White Lists`（missing `Deploy`）
+- **index list / SUMMARY practice title**: **identical to H1**
+- **Application Scenario** second paragraph lead-in: `This best practice will introduce how to use Terraform…`（**not** `This practice will introduce`）
+
+### Section order
+
+1. `# Deploy {Scene}`
 2. `## Application Scenario`
 3. `## Related Resources/Data Sources`
-   - Fixed lead-in: `This best practice involves the following main resources and data sources:`
-   - `### Data Sources` / `### Resources` / `### Resource/Data Source Dependencies`
 4. `## Operation Steps`
 5. `## Reference Information`
-   - Huawei Cloud product documentation index for the service
-   - Fixed: `[Huawei Cloud Provider Documentation](https://registry.terraform.io/providers/huaweicloud/huaweicloud/latest/docs)`
-   - **Source code link — mandatory English anchor text format（注意大小写与用词，勿自行改写）：**  
-     `[Best Practice Source Code Reference For {English practice title}](https://github.com/huaweicloud/terraform-provider-huaweicloud/tree/master/examples/{b_service}/{b_practice})`  
-     - `{English practice title}` 与正文 `#` 标题语义一致（服务名 + 场景，可用名词短语；不必强行以 Deploy 开头）  
-     - **正确示例：**  
-       `[Best Practice Source Code Reference For AAD Black/White Lists](https://github.com/huaweicloud/terraform-provider-huaweicloud/tree/master/examples/aad/black-white-lists)`  
-       `[Best Practice Source Code Reference For Anti-DDoS Basic Protection](https://github.com/huaweicloud/terraform-provider-huaweicloud/tree/master/examples/antiddos/basic)`  
-     - **错误示例（禁止）：**  
-       `AAD Black/White Lists Best Practice Source Code Reference`（语序错误）  
-       `Best practice source code reference for ...`（大小写错误）
+
+### Related Resources/Data Sources
+
+**When the source has data sources** (ECS-style):
+
+- Lead-in: `This best practice involves the following main resources and data sources:`
+- Subsections: `### Data Sources` → `### Resources` → `### Resource/Data Source Dependencies`
+
+**When there is no data source** (Anti-DDoS / AAD-style):
+
+- Lead-in: `This best practice involves the following main resources:`（**do not** say “resources and data sources”）
+- **Omit** empty `### Data Sources`
+- Keep: `### Resources` → `### Resource/Data Source Dependencies`
+
+Use clear product display names, e.g. `[Advanced Anti-DDoS Instance (huaweicloud_aad_instance)](...)`.
+
+### Operation Steps
+
+1. Script Preparation (with link to `prepare_before_deploy.md`)
+2. Per-resource steps: **inline `variable` blocks** used by that step inside the HCL fence, then `resource`/`data` (same as Anti-DDoS/ECS docs)
+3. Region comment above HCL: if no `region` argument, use  
+   `# Create … in the specified region (if the region parameter is omitted, it inherits the region specified in the current provider block) by default`
+4. **tfvars step title must be:**  
+   `### N. Preset Input Parameters Required for Resource Deployment (Optional)`  
+   （`Required` + `(Optional)` 均不可省；禁止写成 `Preset Input Parameters for Resource Deployment`）
+5. Final step: `### N. Initialize and Apply Terraform Configuration`
+
+### Reference Information
+
+- Huawei Cloud product documentation index for the service
+- Fixed: `[Huawei Cloud Provider Documentation](https://registry.terraform.io/providers/huaweicloud/huaweicloud/latest/docs)`
+- Source link anchor (**exact pattern**):  
+  `[Best Practice Source Code Reference For {English practice title}](https://github.com/huaweicloud/terraform-provider-huaweicloud/tree/master/examples/{b_service}/{b_practice})`  
+  - `{English practice title}` **与 H1 一致**（含 `Deploy …`）  
+  - **Correct:** `[Best Practice Source Code Reference For Deploy Black/White Lists](...)`、`[Best Practice Source Code Reference For Deploy Basic Protection](...)`  
+  - **Wrong:** `AAD Black/White Lists Best Practice Source Code Reference`；`Best practice source code reference for ...`；与 H1 不一致的残缺标题
 
 内容须与中文版同一套资源/参数/步骤，禁止中英不一致或英文臆造。源码 URL 使用 B 仓真实 `examples/` 路径（可能与 C 仓 `{service}/{practice}` 映射名不同）。
 
 ---
-
 ## 分类 index.md 规范（新建服务必遵；对齐 `anti-ddos/index.md`）
 
 > 权威对照：C 仓 `docs/{zh-cn|en-us}/best-practices/anti-ddos/index.md` 与 `templates/category_index.md`。  
@@ -198,7 +270,7 @@ HCL 注释：声明了 `region` 写「在指定 region 下…」；否则写「�
 
 This section contains the following best practices:
 
-* [{Practice title}]({practice}.md) - {one-sentence description covering main resources/steps}.
+* [{Practice title = H1, e.g. Deploy Black/White Lists}]({practice}.md) - {one-sentence description covering main resources/steps}.
 
 ## Reference Materials
 
@@ -213,7 +285,7 @@ This section contains the following best practices:
 | `## Best Practices Overview` | **必须两段**，套用下列句式（仅替换服务名与资源表述，勿自行改写成一句短述）： |
 | | ① `This section provides best practice examples for using Terraform to automatically deploy and manage Huawei Cloud {Name}, helping you understand how to efficiently manage cloud {Name} … resources using Infrastructure as Code (IaC).` |
 | | ② `Through the best practices in this section, you can learn the main deployment processes for {Name} … resources. These best practices will help you quickly get started with automated {Name} deployment and lay a solid foundation for subsequent {Name} management and operation work.` |
-| `## Best Practices List` | 固定导语一行：`This section contains the following best practices:`。列表用 `*`（不是仅 `-` 裸链接）。每条：`* [Title](file.md) - Introduces how to use Terraform to …`（说明须点出主要资源/步骤，对齐 Anti-DDoS 条目长度） |
+| `## Best Practices List` | 固定导语一行：`This section contains the following best practices:`。列表用 `*`。每条：`* [{与英文正文 H1 完全一致的标题}](file.md) - Introduces how to use Terraform to …`。**标题必须是 `Deploy …`，禁止 `AAD Black/White Lists` 这类缺 Deploy 的写法** |
 | `## Reference Materials` | 两条：① 华为云该产品 Supports index；② **固定** `[Terraform Official Documentation](https://www.terraform.io/docs/index.html)`。**不要**在 index 放 Provider 文档链接（Provider 属于实践正文 Reference Information） |
 
 ### 中文（步骤 6）固定骨架与内容量
@@ -233,7 +305,7 @@ This section contains the following best practices:
 
 本章节包含以下最佳实践：
 
-* [{实践中文标题}]({practice}.md) - {一句话说明主要资源/步骤}。
+* [{实践中文标题 = H1，如 部署黑白名单}]({practice}.md) - {一句话说明主要资源/步骤}。
 
 ## 参考资料
 
@@ -246,7 +318,7 @@ This section contains the following best practices:
 | `# 简介` | 固定两字标题 |
 | `## 什么是…` | **至少两段**产品介绍（对齐中文 Anti-DDoS），可引用华为云 Supports 语义，勿编造不存在的计费/规格细节 |
 | `## 最佳实践简述` | **必须两段**：① `本章节提供了使用Terraform自动化部署和管理华为云{全称}（{简称}）的最佳实践示例，帮助您了解如何利用Infrastructure as Code（IaC）的方式高效地管理云上的{简称}…资源。` ② `通过本章节的最佳实践，您可以学习到主要的{简称}…资源的部署流程，这些最佳实践将帮助您快速上手{简称}的自动化部署，并为后续的…管理和运维工作奠定坚实基础。` |
-| `## 最佳实践列表` | 固定导语：`本章节包含以下最佳实践：`。每条 `* [标题](file.md) - 介绍如何使用Terraform…`；顺序与英文 index 一致 |
+| `## 最佳实践列表` | 固定导语：`本章节包含以下最佳实践：`。每条 `* [{与中文正文 H1 完全一致的标题}](file.md) - 介绍如何使用Terraform…`。**标题必须是 `部署…`，禁止 `AAD黑白名单最佳实践`（带「最佳实践」后缀或缺少「部署」）**；顺序与英文 index 一致 |
 | `## 参考资料` | 产品文档 + **固定** Terraform 官方文档；不要用 Provider 文档替代第二条 |
 
 ### 错误示例（AAD 精简版 — 禁止再现）
