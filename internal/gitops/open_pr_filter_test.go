@@ -19,19 +19,38 @@ func TestPracticeBranch(t *testing.T) {
 	}
 }
 
-func TestFilterOpenPRs(t *testing.T) {
+func TestServiceFromPRTitle(t *testing.T) {
+	if got := gitops.ServiceFromPRTitle("docs(dcs): support new best practice for redis account"); got != "dcs" {
+		t.Fatalf("got %q", got)
+	}
+	if got := gitops.ServiceFromPRTitle("docs(anti-ddos): support new best practice for basic"); got != "anti-ddos" {
+		t.Fatalf("got %q", got)
+	}
+	if got := gitops.ServiceFromPRTitle("chore: unrelated"); got != "" {
+		t.Fatalf("got %q", got)
+	}
+}
+
+func TestFilterOpenPRs_ServiceAndOnePerScan(t *testing.T) {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/repos/Lance52259/hcbp-demo/pulls", func(w http.ResponseWriter, r *http.Request) {
-		head := r.URL.Query().Get("head")
-		if strings.Contains(head, "examples-ecs-basic") {
-			_ = json.NewEncoder(w).Encode([]map[string]any{{
-				"number":   42,
-				"html_url": "https://github.com/Lance52259/hcbp-demo/pull/42",
-				"title":    "docs(ecs): support new best practice for basic",
-			}})
-			return
+		if r.URL.Query().Get("state") != "open" {
+			t.Fatalf("state=%s", r.URL.Query().Get("state"))
 		}
-		_ = json.NewEncoder(w).Encode([]any{})
+		_ = json.NewEncoder(w).Encode([]map[string]any{
+			{
+				"number":   11,
+				"html_url": "https://github.com/Lance52259/hcbp-demo/pull/11",
+				"title":    "docs(dcs): support new best practice for redis account",
+				"head":     map[string]any{"ref": "doc-craft/examples-dcs-redis-account"},
+			},
+			{
+				"number":   99,
+				"html_url": "https://github.com/Lance52259/hcbp-demo/pull/99",
+				"title":    "docs: missing service",
+				"head":     map[string]any{"ref": "feature/other"},
+			},
+		})
 	})
 	srv := httptest.NewServer(mux)
 	t.Cleanup(srv.Close)
@@ -47,17 +66,32 @@ func TestFilterOpenPRs(t *testing.T) {
 	prm.Client = srv.Client()
 
 	practices := []model.Practice{
-		{PracticeID: "examples/ecs/basic"},
-		{PracticeID: "examples/vpc/basic"},
+		{PracticeID: "examples/dcs/redis-all-sessions-kill"}, // blocked: service dcs has open PR
+		{PracticeID: "examples/dcs/redis-account"},           // blocked: exact head + service
+		{PracticeID: "examples/vpc/basic"},                   // keep
+		{PracticeID: "examples/vpc/peering"},                 // skip: same service in this scan
+		{PracticeID: "examples/ecs/basic"},                   // keep
 	}
-	keep, skipped, err := prm.FilterOpenPRs(practices)
+	serviceOf := func(p model.Practice) string { return p.Service() }
+	keep, skipped, err := prm.FilterOpenPRs(practices, serviceOf)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(keep) != 1 || keep[0].PracticeID != "examples/vpc/basic" {
+	if len(keep) != 2 {
+		t.Fatalf("keep=%+v skipped=%v", keep, skipped)
+	}
+	if keep[0].PracticeID != "examples/vpc/basic" || keep[1].PracticeID != "examples/ecs/basic" {
 		t.Fatalf("keep=%+v", keep)
 	}
-	if len(skipped) != 1 || !strings.Contains(skipped[0], "examples/ecs/basic") || !strings.Contains(skipped[0], "#42") {
-		t.Fatalf("skipped=%v", skipped)
+	joined := strings.Join(skipped, "\n")
+	for _, want := range []string{
+		"examples/dcs/redis-all-sessions-kill",
+		`service "dcs"`,
+		"examples/vpc/peering",
+		"already queued in this scan",
+	} {
+		if !strings.Contains(joined, want) {
+			t.Fatalf("skipped missing %q:\n%s", want, joined)
+		}
 	}
 }

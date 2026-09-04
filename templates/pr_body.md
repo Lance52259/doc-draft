@@ -45,6 +45,7 @@ A new best practice appeared under B repo `examples/` that is not yet covered in
 - [ ] Title matches: `docs({service}): support new best practice for {simple_title}`
 - [ ] Spot-check command blocks and dependency tree
 - [ ] Merge when ready; after merge this practice is considered synced
+- [ ] Note: while this PR is open, doc-craft will not open another PR for the same `{service}` until the next scan after merge
 
 ---
 

@@ -41,7 +41,7 @@
 ## 功能特性
 
 - **增量探测**：对比 B 仓 `examples/` 与 C 仓已有文档（含服务别名、连字符/下划线模糊匹配）
-- **Open PR 跳过**：C 仓若已存在对应 `doc-craft/...` 分支的 open PR，则跳过该实践
+- **Open PR 跳过（按服务）**：扫描 C 仓 `doc-craft/...` 的 open PR，解析标题中的 `docs({service})`；**该服务下所有未对接实践一律跳过**，直到 PR 合入后的下一次扫描。同一次扫描内每个服务最多处理 **1** 条实践，避免并行污染 `index.md` / `SUMMARY.md`
 - **中英双语生成**：按 Skill 顺序产出 `docs/zh-cn/` 与 `docs/en-us/` 正文
 - **安全导航补丁**：`SUMMARY.md` / `index.md` / `README.md` 仅定点插入；英文侧先按字母序定目录，中文侧跟随；禁止整文件重写
 - **一实践一 PR**：提交信息与 PR 标题统一为 `docs({service}): support new best practice for {title}`
@@ -70,7 +70,7 @@
 ```
 
 1. 拉取 B / C 工作树  
-2. 枚举 examples，过滤已对接文档与 open PR  
+2. 枚举 examples，过滤已对接文档；按 open PR **所属服务**跳过，且每服务每轮最多 1 条
 3. 按 `MAX_PRACTICES` 限流后调用 AI 生成  
 4. 编排层补丁中英导航文件  
 5. 推送分支并创建 PR（非 dry-run）
@@ -154,7 +154,7 @@ GitHub Actions：本仓库工作流使用 `environment: Development`，请在 **
 | `AI_MAX_TOKENS` | `300000` | **Variable**（`vars.AI_MAX_TOKENS`） | 单次完成最大 token；双语文档建议拉高。DeepSeek V4 输出硬上限约 384000 |
 | `AI_TIMEOUT_SECONDS` | `300` | **Variable**（`vars.AI_TIMEOUT_SECONDS`） | 请求超时（秒）；拉高 max_tokens 后建议同步加大 |
 | `DRY_RUN` | `false` | workflow 输入 / 本地 `.env` | `true` 时不 push / 不开真实 PR |
-| `MAX_PRACTICES` | 本地 `0`（不限制）；Actions 未配置时回退 `1` | **Variable**（`vars.MAX_PRACTICES`） | 单次最多处理条数。**必须配在 Variables，不要放进 Secrets**；放错则 `vars` 读不到，会一直用默认 `1` |
+| `MAX_PRACTICES` | 本地 `0`（不限制）；Actions 未配置时回退 `1` | **Variable**（`vars.MAX_PRACTICES`） | 过滤后单次最多处理条数（先按服务跳过 open PR，再每服务留 1 条，最后才截断）。**必须配在 Variables，不要放进 Secrets**；放错则 `vars` 读不到，会一直用默认 `1` |
 | `SKILL_ID` | `best-practice-doc` | **Variable**（`vars.SKILL_ID`） | Skill 目录名 |
 
 路径映射（B `examples` → C 服务目录 / 文件名）见 [`configs/practice_mapping.yaml`](./configs/practice_mapping.yaml)。  
@@ -234,7 +234,7 @@ make build
 ```
 
 - 测试与源码同目录：`*_test.go`
-- 本地联调建议：`MAX_PRACTICES=1` + `DRY_RUN=true`
+- 本地联调建议：`MAX_PRACTICES=1` + `DRY_RUN=true`（同服务多实践时，未合入的 open PR 会挡住该服务其余条目）
 - 生成规范变更请同步更新 `skills/best-practice-doc/SKILL.md`
 
 ---

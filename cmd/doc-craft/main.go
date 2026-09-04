@@ -52,7 +52,11 @@ Usage:
   doc-craft run [--practice ID] [--dry-run] [--no-refresh]
 
 Env:
-  MAX_PRACTICES   max new practices per run (0 = unlimited)
+  MAX_PRACTICES   max new practices per run after filters (0 = unlimited)
+
+Notes:
+  Open doc-craft PRs on C block their entire docs({service}); at most one
+  practice per service is processed per scan until that PR is merged.
 `)
 }
 
@@ -204,10 +208,10 @@ func runPipeline(args []string) int {
 		}
 		selected = filtered
 		if len(selected) == 0 {
-			// Explicit practice may have been filtered as open-PR skip
+			// Explicit practice may have been filtered as open-PR / one-per-service skip
 			for _, msg := range detection.SkippedOpenPR {
 				if strings.HasPrefix(msg, *practice+":") {
-					fmt.Printf("Practice %s skipped (open PR already exists)\n", *practice)
+					fmt.Printf("Practice %s skipped: %s\n", *practice, strings.TrimPrefix(msg, *practice+": "))
 					printJSON(model.PipelineResult{Detected: *detection, Skipped: detection.SkippedOpenPR, DryRun: s.DryRun})
 					return 0
 				}
@@ -244,8 +248,25 @@ func runPipeline(args []string) int {
 	stateMgr := &monitor.StateManager{Path: s.AbsoluteStatePath()}
 	state, _ := stateMgr.Load()
 
+	resolver := mapping.NewResolver(s.Mapping, s.CDocsRoot)
+	openedServices := map[string]string{} // service → practice_id opened/kept this run
+
 	for _, item := range selected {
-		// Re-check immediately before generate (race with concurrent runs)
+		doc := resolver.Resolve(item)
+		svc := strings.ToLower(strings.TrimSpace(doc.Service))
+		if svc == "" {
+			svc = strings.ToLower(strings.TrimSpace(item.Service()))
+		}
+		if svc == "" {
+			svc = "unknown"
+		}
+		if prev, ok := openedServices[svc]; ok {
+			msg := fmt.Sprintf("%s: skip, service %q already handled in this run (%s)", item.PracticeID, svc, prev)
+			pipeline.Skipped = append(pipeline.Skipped, msg)
+			continue
+		}
+
+		// Re-check immediately before generate (race with concurrent runs / prior opens)
 		branch := gitops.PracticeBranch(item.PracticeID)
 		if existing, err := prm.FindOpenPR(branch); err != nil {
 			pipeline.Errors = append(pipeline.Errors, fmt.Sprintf("%s: %v", item.PracticeID, err))
@@ -254,6 +275,7 @@ func runPipeline(args []string) int {
 			msg := fmt.Sprintf("%s: skip, open PR #%d %s (head %s)", item.PracticeID, existing.Number, existing.URL, branch)
 			pipeline.Skipped = append(pipeline.Skipped, msg)
 			state.OpenPRs[item.PracticeID] = existing.URL
+			openedServices[svc] = item.PracticeID
 			continue
 		}
 
@@ -291,6 +313,7 @@ func runPipeline(args []string) int {
 			pipeline.PRURLs = append(pipeline.PRURLs, pr.URL)
 			state.OpenPRs[item.PracticeID] = pr.URL
 		}
+		openedServices[svc] = item.PracticeID
 		if !contains(state.ProcessedPractices, item.PracticeID) {
 			state.ProcessedPractices = append(state.ProcessedPractices, item.PracticeID)
 		}
@@ -375,14 +398,26 @@ func filterOpenPRPractices(s *config.Settings, detection *model.DetectionResult)
 	if err != nil {
 		return err
 	}
-	keep, skipped, err := prm.FilterOpenPRs(detection.NewPractices)
+	resolver := mapping.NewResolver(s.Mapping, s.CDocsRoot)
+	serviceOf := func(p model.Practice) string {
+		doc := resolver.Resolve(p)
+		svc := strings.ToLower(strings.TrimSpace(doc.Service))
+		if svc == "" {
+			svc = strings.ToLower(strings.TrimSpace(p.Service()))
+		}
+		if svc == "" {
+			return "unknown"
+		}
+		return svc
+	}
+	keep, skipped, err := prm.FilterOpenPRs(detection.NewPractices, serviceOf)
 	if err != nil {
 		return err
 	}
 	detection.NewPractices = keep
 	if len(skipped) > 0 {
 		detection.SkippedOpenPR = append(detection.SkippedOpenPR, skipped...)
-		fmt.Printf("Skipped %d practice(s) with open PR on %s\n", len(skipped), s.CRepo)
+		fmt.Printf("Skipped %d practice(s) due to open PR / one-per-service on %s\n", len(skipped), s.CRepo)
 	}
 	return nil
 }
