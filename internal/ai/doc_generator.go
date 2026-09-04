@@ -16,7 +16,112 @@ import (
 	"github.com/Lance52259/doc-draft/internal/nav"
 )
 
-var jsonBlock = regexp.MustCompile("(?s)```(?:json)?\\s*(\\{.*?\\})\\s*```")
+var jsonFence = regexp.MustCompile("(?s)```(?:json)?\\s*\\n?(.*?)\\n?```")
+
+func ExtractJSON(text string) (map[string]any, error) {
+	text = strings.TrimSpace(text)
+	text = strings.TrimPrefix(text, "\ufeff")
+	if text == "" {
+		return nil, fmt.Errorf("unable to parse JSON from model output: empty response")
+	}
+
+	var candidates []string
+	if fenced := extractMarkdownJSONFence(text); fenced != "" {
+		candidates = append(candidates, fenced)
+	}
+	candidates = append(candidates, text)
+	if obj := extractBalancedObject(text); obj != "" && obj != text {
+		candidates = append(candidates, obj)
+	}
+
+	var lastErr error
+	seen := map[string]bool{}
+	for _, c := range candidates {
+		for _, attempt := range []string{c, repairCommonJSONIssues(c)} {
+			attempt = strings.TrimSpace(attempt)
+			if attempt == "" || seen[attempt] {
+				continue
+			}
+			seen[attempt] = true
+			var out map[string]any
+			if err := json.Unmarshal([]byte(attempt), &out); err != nil {
+				lastErr = err
+				continue
+			}
+			return out, nil
+		}
+	}
+	if lastErr != nil {
+		return nil, fmt.Errorf("unable to parse JSON from model output: %w", lastErr)
+	}
+	return nil, fmt.Errorf("unable to parse JSON from model output")
+}
+
+func extractMarkdownJSONFence(text string) string {
+	m := jsonFence.FindStringSubmatch(text)
+	if m == nil {
+		return ""
+	}
+	inner := strings.TrimSpace(m[1])
+	if strings.HasPrefix(inner, "{") {
+		return inner
+	}
+	if obj := extractBalancedObject(inner); obj != "" {
+		return obj
+	}
+	return inner
+}
+
+// extractBalancedObject returns the first top-level {...} slice using brace depth.
+func extractBalancedObject(text string) string {
+	start := strings.Index(text, "{")
+	if start < 0 {
+		return ""
+	}
+	depth := 0
+	inString := false
+	escaped := false
+	for i := start; i < len(text); i++ {
+		ch := text[i]
+		if inString {
+			if escaped {
+				escaped = false
+				continue
+			}
+			if ch == '\\' {
+				escaped = true
+				continue
+			}
+			if ch == '"' {
+				inString = false
+			}
+			continue
+		}
+		switch ch {
+		case '"':
+			inString = true
+		case '{':
+			depth++
+		case '}':
+			depth--
+			if depth == 0 {
+				return text[start : i+1]
+			}
+		}
+	}
+	return ""
+}
+
+func repairCommonJSONIssues(s string) string {
+	s = strings.ReplaceAll(s, "\u201c", `"`)
+	s = strings.ReplaceAll(s, "\u201d", `"`)
+	s = strings.ReplaceAll(s, "\u2018", "'")
+	s = strings.ReplaceAll(s, "\u2019", "'")
+	// trailing commas before } or ]
+	reTrailing := regexp.MustCompile(`,\s*([}\]])`)
+	s = reTrailing.ReplaceAllString(s, "$1")
+	return s
+}
 
 // DocGenerator orchestrates Skill + DeepSeek generation.
 type DocGenerator struct {
@@ -114,7 +219,6 @@ func PackSourceContext(practiceDir string, maxChars int) (string, error) {
 		return nil
 	})
 
-	// simple sort: rank, then path
 	for i := 0; i < len(files); i++ {
 		for j := i + 1; j < len(files); j++ {
 			if files[j].rank < files[i].rank || (files[j].rank == files[i].rank && files[j].rel < files[i].rel) {
@@ -147,27 +251,6 @@ func PackSourceContext(practiceDir string, maxChars int) (string, error) {
 		return "(empty practice directory)", nil
 	}
 	return strings.Join(parts, "\n"), nil
-}
-
-func ExtractJSON(text string) (map[string]any, error) {
-	text = strings.TrimSpace(text)
-	var out map[string]any
-	if err := json.Unmarshal([]byte(text), &out); err == nil {
-		return out, nil
-	}
-	if m := jsonBlock.FindStringSubmatch(text); m != nil {
-		if err := json.Unmarshal([]byte(m[1]), &out); err == nil {
-			return out, nil
-		}
-	}
-	start := strings.Index(text, "{")
-	end := strings.LastIndex(text, "}")
-	if start >= 0 && end > start {
-		if err := json.Unmarshal([]byte(text[start:end+1]), &out); err == nil {
-			return out, nil
-		}
-	}
-	return nil, fmt.Errorf("unable to parse JSON from model output")
 }
 
 func ValidatePaths(files []model.DocFileChange, allowlist []string) error {
@@ -220,6 +303,7 @@ func (g *DocGenerator) Generate(ctx context.Context, practice model.Practice, pr
 
 	var lastErr error
 	var raw string
+	var dumpPaths []string
 	for attempt := 0; attempt <= g.Settings.AIMaxRetries; attempt++ {
 		completion, err := g.Provider.Complete(ctx, messages, 0.2, g.Settings.ResponseFormatJSON)
 		if err != nil {
@@ -229,12 +313,31 @@ func (g *DocGenerator) Generate(ctx context.Context, practice model.Practice, pr
 		raw = completion.Content
 		data, err := ExtractJSON(raw)
 		if err != nil {
+			dump := g.dumpAIFailure(practice.PracticeID, attempt, raw, err)
+			if dump != "" {
+				dumpPaths = append(dumpPaths, dump)
+				fmt.Printf("AI JSON parse failed for %s (attempt %d); dumped %s (%d bytes)\n",
+					practice.PracticeID, attempt+1, dump, len(raw))
+			}
 			lastErr = err
+			// Ask model to emit a complete JSON object on the next try.
+			messages = append(messages,
+				provider.ChatMessage{Role: "assistant", Content: raw},
+				provider.ChatMessage{Role: "user", Content: jsonRepairHint},
+			)
 			continue
 		}
 		files, err := parseFiles(data, targetPath)
 		if err != nil {
+			dump := g.dumpAIFailure(practice.PracticeID, attempt, raw, err)
+			if dump != "" {
+				dumpPaths = append(dumpPaths, dump)
+			}
 			lastErr = err
+			messages = append(messages,
+				provider.ChatMessage{Role: "assistant", Content: raw},
+				provider.ChatMessage{Role: "user", Content: jsonRepairHint},
+			)
 			continue
 		}
 		if err := ValidatePaths(files, g.Settings.PathAllowlist); err != nil {
@@ -262,7 +365,30 @@ func (g *DocGenerator) Generate(ctx context.Context, practice model.Practice, pr
 			RawResponse: raw,
 		}, nil
 	}
+	if len(dumpPaths) > 0 {
+		return nil, fmt.Errorf("doc generation failed for %s: %w (see %s)", practice.PracticeID, lastErr, dumpPaths[len(dumpPaths)-1])
+	}
 	return nil, fmt.Errorf("doc generation failed for %s: %w", practice.PracticeID, lastErr)
+}
+
+const jsonRepairHint = `Previous output was not valid/complete JSON. Reply with ONE JSON object only — no markdown fences, no commentary.
+Ensure every string (especially files[].content) has correct escaping, and that all braces/brackets are closed. Keep bilingual bodies but prefer shorter HCL excerpts if needed to avoid truncation.`
+
+func (g *DocGenerator) dumpAIFailure(practiceID string, attempt int, raw string, cause error) string {
+	if g == nil || g.Settings == nil {
+		return ""
+	}
+	slug := strings.ReplaceAll(practiceID, "/", "__")
+	dir := filepath.Join(g.Settings.AbsoluteWorkDir(), "ai-failures", slug)
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return ""
+	}
+	base := fmt.Sprintf("attempt-%d", attempt+1)
+	rawPath := filepath.Join(dir, base+".raw.txt")
+	errPath := filepath.Join(dir, base+".err.txt")
+	_ = os.WriteFile(rawPath, []byte(raw), 0o644)
+	_ = os.WriteFile(errPath, []byte(fmt.Sprintf("practice_id=%s\nattempt=%d\nbytes=%d\nerror=%v\n", practiceID, attempt+1, len(raw), cause)), 0o644)
+	return rawPath
 }
 
 func parseFiles(data map[string]any, fallbackPath string) ([]model.DocFileChange, error) {

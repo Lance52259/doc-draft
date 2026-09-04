@@ -48,3 +48,12 @@ jobs:
           SKILL_ID: ${{ vars.SKILL_ID || 'best-practice-doc' }}
           # 单次最多处理条数；Environment Variable / Repo Variable 均可；0=不限制
           MAX_PRACTICES: ${{ vars.MAX_PRACTICES || '1' }}
+
+      - name: Upload AI failure dumps
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ai-failures
+          path: .work/ai-failures/
+          if-no-files-found: ignore
+          retention-days: 14

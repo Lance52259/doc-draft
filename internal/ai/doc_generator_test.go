@@ -19,6 +19,27 @@ func TestExtractJSON(t *testing.T) {
 	if err != nil || int(m["a"].(float64)) != 2 {
 		t.Fatalf("%v %v", m, err)
 	}
+	// preamble + balanced object
+	m, err = ai.ExtractJSON("Here is the result:\n{\"a\": 3, \"b\": \"x\"}\nThanks.")
+	if err != nil || int(m["a"].(float64)) != 3 {
+		t.Fatalf("preamble: %v %v", m, err)
+	}
+	// trailing comma repair
+	m, err = ai.ExtractJSON(`{"a": 4, "files": [{"path": "x.md", "content": "hi",},],}`)
+	if err != nil || int(m["a"].(float64)) != 4 {
+		t.Fatalf("trailing comma: %v %v", m, err)
+	}
+	// smart quotes
+	m, err = ai.ExtractJSON("{\u201ca\u201d: 5}")
+	if err != nil || int(m["a"].(float64)) != 5 {
+		t.Fatalf("smart quotes: %v %v", m, err)
+	}
+	if _, err := ai.ExtractJSON(""); err == nil {
+		t.Fatal("expected empty error")
+	}
+	if _, err := ai.ExtractJSON("not json at all"); err == nil {
+		t.Fatal("expected parse error")
+	}
 }
 
 func TestValidatePaths(t *testing.T) {

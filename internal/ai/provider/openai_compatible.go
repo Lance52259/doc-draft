@@ -35,6 +35,8 @@ type OpenAICompatible struct {
 	Model      string
 	Timeout    time.Duration
 	MaxRetries int
+	// MaxTokens caps completion length. Bilingual best-practice JSON is large; default 8192.
+	MaxTokens  int
 	HTTPClient *http.Client
 }
 
@@ -54,6 +56,7 @@ func NewDeepSeek(apiKey, baseURL, model string, timeoutSec, maxRetries int) *Ope
 		Model:      model,
 		Timeout:    time.Duration(timeoutSec) * time.Second,
 		MaxRetries: maxRetries,
+		MaxTokens:  8192,
 		HTTPClient: &http.Client{Timeout: time.Duration(timeoutSec) * time.Second},
 	}
 }
@@ -70,6 +73,7 @@ type chatRequest struct {
 	Model          string        `json:"model"`
 	Messages       []ChatMessage `json:"messages"`
 	Temperature    float64       `json:"temperature"`
+	MaxTokens      int           `json:"max_tokens,omitempty"`
 	ResponseFormat *struct {
 		Type string `json:"type"`
 	} `json:"response_format,omitempty"`
@@ -78,7 +82,8 @@ type chatRequest struct {
 type chatResponse struct {
 	Model   string `json:"model"`
 	Choices []struct {
-		Message ChatMessage `json:"message"`
+		Message      ChatMessage `json:"message"`
+		FinishReason string      `json:"finish_reason"`
 	} `json:"choices"`
 }
 
@@ -86,10 +91,15 @@ func (p *OpenAICompatible) Complete(ctx context.Context, messages []ChatMessage,
 	if p.APIKey == "" {
 		return nil, fmt.Errorf("api_key is required")
 	}
+	maxTokens := p.MaxTokens
+	if maxTokens <= 0 {
+		maxTokens = 8192
+	}
 	reqBody := chatRequest{
 		Model:       p.Model,
 		Messages:    messages,
 		Temperature: temperature,
+		MaxTokens:   maxTokens,
 	}
 	if responseFormatJSON {
 		reqBody.ResponseFormat = &struct {
@@ -134,7 +144,12 @@ func (p *OpenAICompatible) Complete(ctx context.Context, messages []ChatMessage,
 			lastErr = fmt.Errorf("empty choices from AI")
 			continue
 		}
-		return &CompletionResult{Content: parsed.Choices[0].Message.Content, Model: parsed.Model}, nil
+		choice := parsed.Choices[0]
+		if choice.FinishReason == "length" {
+			// Truncated JSON usually fails ExtractJSON; caller dumps + repair-retries with a shorten hint.
+			fmt.Printf("warning: AI response truncated (finish_reason=length, %d bytes)\n", len(choice.Message.Content))
+		}
+		return &CompletionResult{Content: choice.Message.Content, Model: parsed.Model}, nil
 	}
 	return nil, fmt.Errorf("AI completion failed after retries: %w", lastErr)
 }
