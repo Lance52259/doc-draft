@@ -146,7 +146,7 @@ func runGenerate(args []string) int {
 	}
 	selected = limitPractices(selected, s.MaxPractices)
 
-	p := provider.NewDeepSeek(s.AIAPIKey, s.AIBaseURL, s.AIModel, s.AITimeoutSeconds, s.AIMaxRetries)
+	p := provider.NewDeepSeek(s.AIAPIKey, s.AIBaseURL, s.AIModel, s.AITimeoutSeconds, s.AIMaxRetries, s.AIMaxTokens)
 	gen := ai.NewDocGenerator(s, p)
 	for _, item := range selected {
 		dir := filepath.Join(repoCtx.B.LocalPath, item.SourcePath)
@@ -233,7 +233,7 @@ func runPipeline(args []string) int {
 		return 1
 	}
 
-	p := provider.NewDeepSeek(s.AIAPIKey, s.AIBaseURL, s.AIModel, s.AITimeoutSeconds, s.AIMaxRetries)
+	p := provider.NewDeepSeek(s.AIAPIKey, s.AIBaseURL, s.AIModel, s.AITimeoutSeconds, s.AIMaxRetries, s.AIMaxTokens)
 	gen := ai.NewDocGenerator(s, p)
 	op := &gitops.RepoOperator{Settings: s}
 	prm, err := gitops.NewPRManager(s)

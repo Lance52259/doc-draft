@@ -151,6 +151,8 @@ GitHub Actions：本仓库工作流使用 `environment: Development`，请在 **
 | `AI_API_KEY` | — | **Secret**（必填） | DeepSeek API Key |
 | `AI_BASE_URL` | `https://api.deepseek.com` | **Variable**（`vars.AI_BASE_URL`） | API 地址 |
 | `AI_MODEL` | `deepseek-chat` | **Variable**（`vars.AI_MODEL`） | 模型名 |
+| `AI_MAX_TOKENS` | `300000` | **Variable**（`vars.AI_MAX_TOKENS`） | 单次完成最大 token；双语文档建议拉高。DeepSeek V4 输出硬上限约 384000 |
+| `AI_TIMEOUT_SECONDS` | `300` | **Variable**（`vars.AI_TIMEOUT_SECONDS`） | 请求超时（秒）；拉高 max_tokens 后建议同步加大 |
 | `DRY_RUN` | `false` | workflow 输入 / 本地 `.env` | `true` 时不 push / 不开真实 PR |
 | `MAX_PRACTICES` | 本地 `0`（不限制）；Actions 未配置时回退 `1` | **Variable**（`vars.MAX_PRACTICES`） | 单次最多处理条数。**必须配在 Variables，不要放进 Secrets**；放错则 `vars` 读不到，会一直用默认 `1` |
 | `SKILL_ID` | `best-practice-doc` | **Variable**（`vars.SKILL_ID`） | Skill 目录名 |
@@ -191,7 +193,7 @@ Secrets / Variables 建议放在 **Environment `Development`**（工作流已声
 |------|--------|
 | **Secrets（必填）** | `AI_API_KEY`、`C_REPO_TOKEN` |
 | **Secrets（可选）** | `B_REPO_TOKEN`；覆盖默认仓时可用 `B_REPO`、`C_REPO` |
-| **Variables（可选）** | `MAX_PRACTICES`、`B_DEFAULT_BRANCH`、`C_DEFAULT_BRANCH`、`AI_BASE_URL`、`AI_MODEL`、`SKILL_ID` |
+| **Variables（可选）** | `MAX_PRACTICES`、`B_DEFAULT_BRANCH`、`C_DEFAULT_BRANCH`、`AI_BASE_URL`、`AI_MODEL`、`AI_MAX_TOKENS`、`AI_TIMEOUT_SECONDS`、`SKILL_ID` |
 
 `MAX_PRACTICES` 等非敏感项请放 **Variables**；若放进 Secrets，工作流的 `vars.MAX_PRACTICES` 读不到，会回退为 `1`。
 

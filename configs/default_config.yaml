@@ -25,8 +25,10 @@ ai:
   provider: openai_compatible
   base_url: https://api.deepseek.com
   model: deepseek-chat
-  timeout_seconds: 120
+  # 长输出（中英正文 + 新服务 index）易打满；DeepSeek V4 输出上限约 384K
+  timeout_seconds: 300
   max_retries: 2
+  max_tokens: 300000
   response_format_json: true
   max_context_chars: 48000
 

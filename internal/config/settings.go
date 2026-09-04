@@ -33,6 +33,7 @@ type Settings struct {
 	AIModel            string
 	AITimeoutSeconds   int
 	AIMaxRetries       int
+	AIMaxTokens        int
 	MaxContextChars    int
 	ResponseFormatJSON bool
 
@@ -96,6 +97,7 @@ type fileConfig struct {
 		Model              string `yaml:"model"`
 		TimeoutSeconds     int    `yaml:"timeout_seconds"`
 		MaxRetries         int    `yaml:"max_retries"`
+		MaxTokens          int    `yaml:"max_tokens"`
 		ResponseFormatJSON bool   `yaml:"response_format_json"`
 		MaxContextChars    int    `yaml:"max_context_chars"`
 	} `yaml:"ai"`
@@ -163,8 +165,9 @@ func Load() (*Settings, error) {
 		PathAllowlist:      []string{"docs/zh-cn/", "docs/en-us/"},
 		AIBaseURL:          "https://api.deepseek.com",
 		AIModel:            "deepseek-chat",
-		AITimeoutSeconds:   120,
+		AITimeoutSeconds:   300,
 		AIMaxRetries:       2,
+		AIMaxTokens:        300000,
 		MaxContextChars:    48000,
 		ResponseFormatJSON: true,
 		SkillID:            "best-practice-doc",
@@ -240,6 +243,9 @@ func applyFileConfig(s *Settings, fc *fileConfig) {
 	if fc.AI.MaxRetries > 0 {
 		s.AIMaxRetries = fc.AI.MaxRetries
 	}
+	if fc.AI.MaxTokens > 0 {
+		s.AIMaxTokens = fc.AI.MaxTokens
+	}
 	if fc.AI.MaxContextChars > 0 {
 		s.MaxContextChars = fc.AI.MaxContextChars
 	}
@@ -310,6 +316,11 @@ func applyEnv(s *Settings) {
 	if v := os.Getenv("AI_MAX_RETRIES"); v != "" {
 		if n, err := strconv.Atoi(v); err == nil {
 			s.AIMaxRetries = n
+		}
+	}
+	if v := os.Getenv("AI_MAX_TOKENS"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil {
+			s.AIMaxTokens = n
 		}
 	}
 	if v := os.Getenv("DRY_RUN"); v != "" {

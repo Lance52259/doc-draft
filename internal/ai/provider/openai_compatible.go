@@ -35,12 +35,12 @@ type OpenAICompatible struct {
 	Model      string
 	Timeout    time.Duration
 	MaxRetries int
-	// MaxTokens caps completion length. Bilingual best-practice JSON is large; default 8192.
+	// MaxTokens caps completion length. Bilingual best-practice JSON is large; default 300000.
 	MaxTokens  int
 	HTTPClient *http.Client
 }
 
-func NewDeepSeek(apiKey, baseURL, model string, timeoutSec, maxRetries int) *OpenAICompatible {
+func NewDeepSeek(apiKey, baseURL, model string, timeoutSec, maxRetries, maxTokens int) *OpenAICompatible {
 	if baseURL == "" {
 		baseURL = "https://api.deepseek.com"
 	}
@@ -48,7 +48,10 @@ func NewDeepSeek(apiKey, baseURL, model string, timeoutSec, maxRetries int) *Ope
 		model = "deepseek-chat"
 	}
 	if timeoutSec <= 0 {
-		timeoutSec = 120
+		timeoutSec = 300
+	}
+	if maxTokens <= 0 {
+		maxTokens = 300000
 	}
 	return &OpenAICompatible{
 		APIKey:     apiKey,
@@ -56,7 +59,7 @@ func NewDeepSeek(apiKey, baseURL, model string, timeoutSec, maxRetries int) *Ope
 		Model:      model,
 		Timeout:    time.Duration(timeoutSec) * time.Second,
 		MaxRetries: maxRetries,
-		MaxTokens:  8192,
+		MaxTokens:  maxTokens,
 		HTTPClient: &http.Client{Timeout: time.Duration(timeoutSec) * time.Second},
 	}
 }
@@ -93,7 +96,7 @@ func (p *OpenAICompatible) Complete(ctx context.Context, messages []ChatMessage,
 	}
 	maxTokens := p.MaxTokens
 	if maxTokens <= 0 {
-		maxTokens = 8192
+		maxTokens = 300000
 	}
 	reqBody := chatRequest{
 		Model:       p.Model,

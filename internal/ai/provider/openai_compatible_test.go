@@ -20,6 +20,9 @@ func TestDeepSeekOpenAICompatible(t *testing.T) {
 		if body["model"] != "deepseek-chat" {
 			t.Fatalf("model=%v", body["model"])
 		}
+		if int(body["max_tokens"].(float64)) != 300000 {
+			t.Fatalf("max_tokens=%v", body["max_tokens"])
+		}
 		rf, _ := body["response_format"].(map[string]any)
 		if rf["type"] != "json_object" {
 			t.Fatalf("response_format=%v", body["response_format"])
@@ -33,7 +36,7 @@ func TestDeepSeekOpenAICompatible(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	p := provider.NewDeepSeek("sk-test", srv.URL, "deepseek-chat", 30, 0)
+	p := provider.NewDeepSeek("sk-test", srv.URL, "deepseek-chat", 30, 0, 300000)
 	res, err := p.Complete(context.Background(), []provider.ChatMessage{{Role: "user", Content: "hi"}}, 0.2, true)
 	if err != nil {
 		t.Fatal(err)

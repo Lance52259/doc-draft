@@ -45,6 +45,8 @@ jobs:
           AI_API_KEY: ${{ secrets.AI_API_KEY }}
           AI_BASE_URL: ${{ vars.AI_BASE_URL || 'https://api.deepseek.com' }}
           AI_MODEL: ${{ vars.AI_MODEL || 'deepseek-chat' }}
+          AI_MAX_TOKENS: ${{ vars.AI_MAX_TOKENS || '300000' }}
+          AI_TIMEOUT_SECONDS: ${{ vars.AI_TIMEOUT_SECONDS || '300' }}
           SKILL_ID: ${{ vars.SKILL_ID || 'best-practice-doc' }}
           # 单次最多处理条数；Environment Variable / Repo Variable 均可；0=不限制
           MAX_PRACTICES: ${{ vars.MAX_PRACTICES || '1' }}
