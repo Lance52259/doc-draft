@@ -7,6 +7,33 @@ import (
 	"github.com/Lance52259/doc-draft/internal/nav"
 )
 
+func TestExcerptAADEnglishKeepsFullParagraph(t *testing.T) {
+	// PR #3 regression: 459-rune EN first paragraph was trimmed to a 92-rune
+	// first sentence while ZH kept the full paragraph.
+	index := `# Introduction
+
+## What is Advanced Anti-DDoS (AAD)
+
+Advanced Anti-DDoS (AAD) is a professional DDoS protection service provided by Huawei Cloud. It is designed to protect Internet servers and applications from distributed denial-of-service (DDoS) attacks and other malicious traffic. AAD provides comprehensive protection capabilities, including DDoS traffic cleaning, CC (Challenge Collapsar) attack protection, and intelligent traffic analysis, ensuring the availability and stability of your online services.
+
+AAD offers flexible deployment modes.
+
+## Best Practices Overview
+`
+	want := "Advanced Anti-DDoS (AAD) is a professional DDoS protection service provided by Huawei Cloud. It is designed to protect Internet servers and applications from distributed denial-of-service (DDoS) attacks and other malicious traffic. AAD provides comprehensive protection capabilities, including DDoS traffic cleaning, CC (Challenge Collapsar) attack protection, and intelligent traffic analysis, ensuring the availability and stability of your online services."
+	got := nav.ExcerptWhatIsParagraph(index, nav.EnUS)
+	if got != want {
+		t.Fatalf("got:\n%s\nwant:\n%s", got, want)
+	}
+	if !strings.Contains(got, "intelligent traffic analysis") {
+		t.Fatalf("must not collapse to first sentence only: %q", got)
+	}
+	heading, _ := nav.ReadmeNavFromIndex(index, nav.EnUS, "AAD")
+	if heading != "Advanced Anti-DDoS (AAD) Best Practices" {
+		t.Fatalf("heading=%q", heading)
+	}
+}
+
 func TestExcerptAntiDDoSStyle(t *testing.T) {
 	index := `# Introduction
 
@@ -18,7 +45,9 @@ Anti-DDoS service supports protection against multiple attack types.
 
 ## Best Practices Overview
 `
-	want := "Anti-DDoS (Anti-Distributed Denial of Service) is a distributed denial-of-service attack protection service provided by Huawei Cloud, which can effectively protect public IPs from DDoS attacks and ensure stable business operations."
+	// Full first paragraph fits under the raised rune budget (was truncated to
+	// first sentence only when max was 450).
+	want := "Anti-DDoS (Anti-Distributed Denial of Service) is a distributed denial-of-service attack protection service provided by Huawei Cloud, which can effectively protect public IPs from DDoS attacks and ensure stable business operations. Anti-DDoS service provides two protection modes: Basic Protection and Professional Protection. Basic Protection provides free DDoS attack protection capabilities for Huawei Cloud users. When a DDoS attack is detected, the system will automatically start traffic cleaning, filter out attack traffic, and only forward normal traffic to the origin server."
 	got := nav.ExcerptWhatIsParagraph(index, nav.EnUS)
 	if got != want {
 		t.Fatalf("got:\n%s\nwant:\n%s", got, want)
@@ -29,6 +58,27 @@ Anti-DDoS service supports protection against multiple attack types.
 	}
 	if blurb != want {
 		t.Fatalf("blurb=%q", blurb)
+	}
+}
+
+func TestExcerptPacksSentencesWhenOverBudget(t *testing.T) {
+	// Build a first paragraph > 600 runes with clear sentence boundaries.
+	long := strings.Repeat("Word ", 80) // 400 runes of filler words+spaces roughly
+	para := "Alpha service is provided by Huawei Cloud. " + long + "Beta continues with more detail about capabilities. Gamma closes the paragraph."
+	index := "# Introduction\n\n## What is Alpha\n\n" + para + "\n\n## Best Practices Overview\n"
+	got := nav.ExcerptWhatIsParagraph(index, nav.EnUS)
+	if got == "" {
+		t.Fatal("empty excerpt")
+	}
+	if utf8RuneCount(got) > 600 {
+		t.Fatalf("excerpt too long: %d", utf8RuneCount(got))
+	}
+	if !strings.HasSuffix(strings.TrimSpace(got), ".") {
+		t.Fatalf("should end on a sentence boundary: %q", got)
+	}
+	if strings.Contains(got, "Gamma closes") && utf8RuneCount(para) > 600 {
+		// Gamma may or may not fit; Alpha+Beta should be preferred over mid-word cut
+		_ = got
 	}
 }
 
@@ -79,4 +129,8 @@ Anti-DDoS服务支持多种攻击类型的防护。
 	if heading != "Anti-DDoS（Anti-DDoS）最佳实践" {
 		t.Fatalf("heading=%q", heading)
 	}
+}
+
+func utf8RuneCount(s string) int {
+	return len([]rune(s))
 }

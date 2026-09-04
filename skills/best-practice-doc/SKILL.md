@@ -1,7 +1,7 @@
 ---
 name: best-practice-doc
 description: 从 terraform-provider-huaweicloud/examples 生成中英双语文档并 PR 到 Lance52259/hcbp-demo
-version: "0.3.4"
+version: "0.3.5"
 source_repo: https://github.com/huaweicloud/terraform-provider-huaweicloud
 source_repo_slug: huaweicloud/terraform-provider-huaweicloud
 source_examples: https://github.com/huaweicloud/terraform-provider-huaweicloud/tree/master/examples
@@ -76,8 +76,8 @@ target_default_branch: master
 
 - **标题**：`{Name from ## What is …} Best Practices`  
   例：`### [Anti-DDoS Best Practices](anti-ddos/index.md)`、`### [Application Operations Management (AOM) Best Practices](aom/index.md)`
-- **简介**：取英文 `index.md` 中 `## What is …` 下**第一段**（过长则截到首句）
-- **禁止**：`AAD Terraform best practices.`、`XXX related best practices.` 等占位句
+- **简介**：取英文 `index.md` 中 `## What is …` 下**第一段全文**（编排层截取；仅当整段异常长时才按句边界裁到长度上限，**禁止**因首句很短就丢掉整段）。正确示例须含产品能力描述，而非一句 `… provided by Huawei Cloud.`
+- **禁止**：`AAD Terraform best practices.`、`XXX related best practices.`、仅首句残缺简介等占位/过度截断
 
 #### 中文（与英文同一问题，必须同等遵守）
 
@@ -86,14 +86,14 @@ target_default_branch: master
   - `### [Anti-DDoS最佳实践](anti-ddos/index.md)`  
   - `### [应用运维管理（AOM）最佳实践](aom/index.md)`  
   - `### [DDoS高防（AAD）最佳实践](aad/index.md)`
-- **简介**：取中文 `index.md` 中 `## 什么是…` 下**第一段**（过长则截到首句），须是产品介绍，不是实践列表说明  
-  **正确示例（对齐 Anti-DDoS）：**  
-  `Anti-DDoS（Anti-Distributed Denial of Service）是华为云提供的分布式拒绝服务攻击防护服务，能够有效防护针对公网IP的DDoS攻击，保障业务的稳定运行。`  
+- **简介**：取中文 `index.md` 中 `## 什么是…` 下**第一段全文**（过长才按句裁剪），须是产品介绍，不是实践列表说明  
+  **正确示例（对齐 Anti-DDoS / AAD）：**  
+  `DDoS高防（Advanced Anti-DDoS，AAD）是华为云提供的专业DDoS防护服务，旨在保护互联网服务器和应用免受分布式拒绝服务（DDoS）攻击及其他恶意流量的影响。AAD提供全面的防护能力，包括DDoS流量清洗、CC（Challenge Collapsar）攻击防护和智能流量分析，确保在线服务的可用性和稳定性。`  
   **错误示例（禁止）：**  
   - `AAD 相关 Terraform 最佳实践。`  
   - `DDoS高防 Terraform 最佳实践。`  
   - `介绍如何使用 Terraform 完成本实践。`
-- 中文简介内容应与英文 README 截取自同一产品介绍语义，仅语言不同；**不得**中英文一侧详述、另一侧占位。
+- 中英 README 简介应语义对齐、篇幅相当；**不得**中文整段、英文只剩首句（[PR #3](https://github.com/Lance52259/hcbp-demo/pull/3) 曾出现的问题）。
 
 ---
 

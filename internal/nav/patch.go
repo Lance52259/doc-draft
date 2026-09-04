@@ -308,8 +308,8 @@ func PatchBestPracticesREADME(content, service, heading, blurb string, loc Local
 	if heading == "" {
 		heading = fmt.Sprintf("%s Best Practices", strings.ToUpper(service))
 	}
-	if blurb == "" {
-		blurb = fmt.Sprintf("%s best practices.", strings.ToUpper(service))
+	if strings.TrimSpace(blurb) == "" {
+		return "", fmt.Errorf("readme blurb empty for service %s; refuse placeholder", service)
 	}
 
 	navHeading := loc.ReadmeNavHeading
@@ -322,10 +322,6 @@ func PatchBestPracticesREADME(content, service, heading, blurb string, loc Local
 		content += "\n"
 	}
 	link := service + "/index.md"
-	if strings.Contains(content, "]("+link+")") {
-		return content, nil
-	}
-
 	block := fmt.Sprintf("### [%s](%s)\n\n%s\n", heading, link, strings.TrimSpace(blurb))
 
 	navIdx := strings.Index(content, navHeading)
@@ -367,6 +363,7 @@ func PatchBestPracticesREADME(content, service, heading, blurb string, loc Local
 	if len(parts) == 0 {
 		return ensureTrailingNewline(prefix + "\n" + block + "\n" + suffix), nil
 	}
+	replaced := false
 	for i, locIdx := range parts {
 		end := len(navBody)
 		if i+1 < len(parts) {
@@ -378,9 +375,16 @@ func PatchBestPracticesREADME(content, service, heading, blurb string, loc Local
 		if m != nil {
 			key = m[2]
 		}
+		if key == service {
+			sections = append(sections, sec{key: service, text: block})
+			replaced = true
+			continue
+		}
 		sections = append(sections, sec{key: key, text: chunk})
 	}
-	sections = append(sections, sec{key: service, text: block})
+	if !replaced {
+		sections = append(sections, sec{key: service, text: block})
+	}
 	sort.SliceStable(sections, func(i, j int) bool { return sections[i].key < sections[j].key })
 
 	var b strings.Builder

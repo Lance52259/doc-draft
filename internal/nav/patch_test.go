@@ -116,6 +116,32 @@ AOM.
 	}
 }
 
+func TestPatchBestPracticesREADMERefreshesExisting(t *testing.T) {
+	base := `# Center
+
+## Documentation Navigation
+
+### [Advanced Anti-DDoS (AAD) Best Practices](aad/index.md)
+
+Advanced Anti-DDoS (AAD) is a professional DDoS protection service provided by Huawei Cloud.
+
+### [Anti-DDoS Best Practices](anti-ddos/index.md)
+
+Anti-DDoS.
+`
+	full := "Advanced Anti-DDoS (AAD) is a professional DDoS protection service provided by Huawei Cloud. It is designed to protect Internet servers."
+	got, err := nav.PatchBestPracticesREADME(base, "aad", "Advanced Anti-DDoS (AAD) Best Practices", full, nav.EnUS)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(got, "It is designed to protect") {
+		t.Fatalf("should refresh blurb:\n%s", got)
+	}
+	if strings.Count(got, "(aad/index.md)") != 1 {
+		t.Fatalf("duplicate aad block:\n%s", got)
+	}
+}
+
 func TestIsDestructiveUpdate(t *testing.T) {
 	if !nav.IsDestructiveUpdate(sampleSUMMARY, "# 目录\n\n* [AAD](best-practices/aad/)\n") {
 		t.Fatal("expected destructive")
