@@ -1,7 +1,7 @@
 ---
 name: best-practice-doc
 description: 从 B 仓 examples 生成中英双语文档并 PR 到 C 仓（仓库由环境变量 / 配置指定，勿写死）
-version: "0.3.8"
+version: "0.3.9"
 # B/C 具体仓库不在此写死。运行时由 B_REPO / C_REPO（及 default_config / .env）注入。
 role_b: source examples repo（B_REPO, B_EXAMPLES_PATH, B_DEFAULT_BRANCH）
 role_c: docs + PR target repo（C_REPO, C_DOCS_ROOT, C_DEFAULT_BRANCH）
@@ -104,8 +104,9 @@ B/C 的 owner/name、默认分支均以**当前运行配置为准**，本文件�
 - 链接使用半角 `()`；每个 `.md` 文件末尾保留一个空行。
 - 不要用精简版目录替换完整 `SUMMARY.md`。
 - 英文 `## Reference Information` 中源码链接锚文本必须为  
-  `Best Practice Source Code Reference For {English practice title}`，  
-  禁止写成 `{title} Best Practice Source Code Reference`。
+  `Best Practice Source Code Reference For {ServiceName} {PracticeObject}`，  
+  例如 `Best Practice Source Code Reference For AAD Black/White Lists`；  
+  **禁止**写成 `{title} Best Practice Source Code Reference`，也**禁止**把正文 H1 的 `Deploy` 写进锚文本（错误：`… For Deploy Black/White Lists`）。
 - 中文 / 英文 `best-practices/README.md` 新增服务条目的简介必须从对应 `index.md` 的「什么是 / What is」首段截取，  
   禁止 `AAD 相关 Terraform 最佳实践。` / `AAD Terraform best practices.` 等占位句。
 - 新建服务的 `index.md` 禁止精简版（单段 What is、一句 Overview、无列表导语/无条目说明、参考资料写成 Provider 文档）。
@@ -244,10 +245,19 @@ Use clear product display names, e.g. `[Advanced Anti-DDoS Instance (huaweicloud
 - Huawei Cloud product documentation index for the service
 - Fixed: `[Huawei Cloud Provider Documentation](https://registry.terraform.io/providers/huaweicloud/huaweicloud/latest/docs)`
 - Source link anchor (**exact pattern**):  
-  `[Best Practice Source Code Reference For {English practice title}](https://github.com/{B_REPO}/tree/{B_DEFAULT_BRANCH}/examples/{b_service}/{b_practice})`  
-  - `{English practice title}` **与 H1 一致**（含 `Deploy …`）；URL 中 `{B_REPO}` / 分支取自当前配置  
-  - **Correct:** `[Best Practice Source Code Reference For Deploy Black/White Lists](...)`、`[Best Practice Source Code Reference For Deploy Basic Protection](...)`  
-  - **Wrong:** `AAD Black/White Lists Best Practice Source Code Reference`；`Best practice source code reference for ...`；与 H1 不一致的残缺标题
+  `[Best Practice Source Code Reference For {ServiceName} {PracticeObject}](https://github.com/{B_REPO}/tree/{B_DEFAULT_BRANCH}/examples/{b_service}/{b_practice})`  
+  - `{ServiceName}`：服务英文名或常用简称（如 `AAD`、`Anti-DDoS`、`ECS`）  
+  - `{PracticeObject}`：最佳实践对象/场景名词短语，通常等于 H1 去掉前缀 `Deploy ` 之后的部分（如 H1=`Deploy Black/White Lists` → `Black/White Lists`）  
+  - **完整锚文本 =** `Best Practice Source Code Reference For` + 空格 + `{ServiceName}` + 空格 + `{PracticeObject}`  
+  - URL 中 `{B_REPO}` / 分支取自当前配置  
+  - **Correct:**  
+    `[Best Practice Source Code Reference For AAD Black/White Lists](...)`  
+    `[Best Practice Source Code Reference For Anti-DDoS Basic Protection](...)`  
+    `[Best Practice Source Code Reference For ECS Basic Instance](...)`  
+  - **Wrong:**  
+    `Best Practice Source Code Reference For Deploy Black/White Lists`（多了 H1 的 `Deploy`，缺服务名）  
+    `AAD Black/White Lists Best Practice Source Code Reference`（语序颠倒）  
+    `Best practice source code reference for ...`（大小写错误）
 
 内容须与中文版同一套资源/参数/步骤，禁止中英不一致或英文臆造。源码 URL 使用 B 仓真实 `examples/` 路径（可能与 C 仓 `{service}/{practice}` 映射名不同）。
 

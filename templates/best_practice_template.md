@@ -97,4 +97,4 @@ vpc_name = "example-vpc"
 - [华为云Provider文档](https://registry.terraform.io/providers/huaweicloud/huaweicloud/latest/docs)
 - [{服务名}{场景}最佳实践源码参考](https://github.com/huaweicloud/terraform-provider-huaweicloud/tree/master/examples/{service}/{practice})
 
-（英文正文 H1 必须为 `Deploy {Scene}`；对应源码锚文本必须为：`Best Practice Source Code Reference For Deploy {Scene}`。）
+（英文正文 H1 必须为 `Deploy {Scene}`；对应源码锚文本必须为：`Best Practice Source Code Reference For {ServiceName} {PracticeObject}`，例如 `Best Practice Source Code Reference For AAD Black/White Lists`——含服务名、**不含** `Deploy`。）

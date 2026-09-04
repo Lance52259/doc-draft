@@ -25,7 +25,7 @@
 - 中英 `SUMMARY.md` 一定存在，只定点插入，禁止整文件重写
 - 禁止只生成中文、省略英文
 - 禁止先改中文导航再改英文导航
-- 英文源码参考链接锚文本：`Best Practice Source Code Reference For {H1 title}`（含 `Deploy …`；勿颠倒语序）
+- 英文源码参考链接锚文本：`Best Practice Source Code Reference For {ServiceName} {PracticeObject}`（如 `… For AAD Black/White Lists`；**不要**带 `Deploy`；勿颠倒语序）
 - 中文源码参考链接锚文本：`{服务名}{场景}最佳实践源码参考`（「最佳实践」只出现在源码锚文本，不出现在正文 H1）
 - 正文 H1 / index 列表：中文 `部署…`、英文 `Deploy …`；禁止 `AAD黑白名单最佳实践` / `AAD Black/White Lists`
 - 无 data source：导语用「主要资源」/ `main resources`，禁止空 `### 数据源`
