@@ -1,25 +1,22 @@
 ---
 name: best-practice-doc
-description: 从 terraform-provider-huaweicloud/examples 生成中英双语文档并 PR 到 Lance52259/hcbp-demo
-version: "0.3.7"
-source_repo: https://github.com/huaweicloud/terraform-provider-huaweicloud
-source_repo_slug: huaweicloud/terraform-provider-huaweicloud
-source_examples: https://github.com/huaweicloud/terraform-provider-huaweicloud/tree/master/examples
-source_default_branch: master
-target_repo: https://github.com/Lance52259/hcbp-demo
-target_repo_slug: Lance52259/hcbp-demo
-target_default_branch: master
+description: 从 B 仓 examples 生成中英双语文档并 PR 到 C 仓（仓库由环境变量 / 配置指定，勿写死）
+version: "0.3.8"
+# B/C 具体仓库不在此写死。运行时由 B_REPO / C_REPO（及 default_config / .env）注入。
+role_b: source examples repo（B_REPO, B_EXAMPLES_PATH, B_DEFAULT_BRANCH）
+role_c: docs + PR target repo（C_REPO, C_DOCS_ROOT, C_DEFAULT_BRANCH）
 ---
 
-# Skill：华为云最佳实践文档生成（hcbp-demo）
+# Skill：华为云最佳实践文档生成（B → C）
 
 ## 何时使用
 
-当 **B 仓库** [huaweicloud/terraform-provider-huaweicloud](https://github.com/huaweicloud/terraform-provider-huaweicloud) 的 `examples/` 出现尚未对接至 **C 仓库** [Lance52259/hcbp-demo](https://github.com/Lance52259/hcbp-demo) 的最佳实践时使用本 Skill。
+当 **B 仓库**（`B_REPO`，其 `examples/` 或 `B_EXAMPLES_PATH`）出现尚未对接至 **C 仓库**（`C_REPO`）的最佳实践时使用本 Skill。  
+B/C 的 owner/name、默认分支均以**当前运行配置为准**，本文件不绑定某一固定 GitHub 仓库。
 
 ## 目标
 
-依据 B 仓实践目录中的 Terraform HCL，按 C 仓模板与导航约定，生成 **中文 + 英文** Markdown 变更，并由 doc-craft **向 [hcbp-demo](https://github.com/Lance52259/hcbp-demo) 推送分支并创建 PR**（默认基于 `master`）。
+依据 B 仓实践目录中的 Terraform HCL，按 C 仓模板与导航约定，生成 **中文 + 英文** Markdown 变更，并由 doc-craft **向 C 仓推送分支并创建 PR**（基于 `C_DEFAULT_BRANCH`，常见为 `master`）。
 
 ---
 
@@ -93,7 +90,7 @@ target_default_branch: master
   - `AAD 相关 Terraform 最佳实践。`  
   - `DDoS高防 Terraform 最佳实践。`  
   - `介绍如何使用 Terraform 完成本实践。`
-- 中英 README 简介应语义对齐、篇幅相当；**不得**中文整段、英文只剩首句（[PR #3](https://github.com/Lance52259/hcbp-demo/pull/3) 曾出现的问题）。
+- 中英 README 简介应语义对齐、篇幅相当；**不得**中文整段、英文只剩首句（曾出现过英文过度截断问题）。
 
 ---
 
@@ -186,8 +183,9 @@ target_default_branch: master
 
 - 华为云对应产品文档 index
 - 固定：`[华为云Provider文档](https://registry.terraform.io/providers/huaweicloud/huaweicloud/latest/docs)`
-- 源码目录链接，锚文本：`[{服务或产品名}{场景简述}最佳实践源码参考](https://github.com/huaweicloud/terraform-provider-huaweicloud/tree/master/examples/{b_service}/{b_practice})`  
-  - **正确：** `[Anti-DDoS基础防护最佳实践源码参考](...)`、`[AAD黑白名单最佳实践源码参考](...)`  
+- 源码目录链接，锚文本：`[{服务或产品名}{场景简述}最佳实践源码参考](https://github.com/{B_REPO}/tree/{B_DEFAULT_BRANCH}/examples/{b_service}/{b_practice})`  
+  - `{B_REPO}` / `{B_DEFAULT_BRANCH}` 取自当前运行配置（勿写死某一组织/仓库）  
+  - **正确形态：** `[Anti-DDoS基础防护最佳实践源码参考](...)`、`[AAD黑白名单最佳实践源码参考](...)`  
   - **错误：** 英文锚文本、仅写 `源码参考`  
   - 注意：源码锚文本可含服务名 + 场景 +「最佳实践源码参考」；**不等于**把「最佳实践」写进正文 H1
 
@@ -246,8 +244,8 @@ Use clear product display names, e.g. `[Advanced Anti-DDoS Instance (huaweicloud
 - Huawei Cloud product documentation index for the service
 - Fixed: `[Huawei Cloud Provider Documentation](https://registry.terraform.io/providers/huaweicloud/huaweicloud/latest/docs)`
 - Source link anchor (**exact pattern**):  
-  `[Best Practice Source Code Reference For {English practice title}](https://github.com/huaweicloud/terraform-provider-huaweicloud/tree/master/examples/{b_service}/{b_practice})`  
-  - `{English practice title}` **与 H1 一致**（含 `Deploy …`）  
+  `[Best Practice Source Code Reference For {English practice title}](https://github.com/{B_REPO}/tree/{B_DEFAULT_BRANCH}/examples/{b_service}/{b_practice})`  
+  - `{English practice title}` **与 H1 一致**（含 `Deploy …`）；URL 中 `{B_REPO}` / 分支取自当前配置  
   - **Correct:** `[Best Practice Source Code Reference For Deploy Black/White Lists](...)`、`[Best Practice Source Code Reference For Deploy Basic Protection](...)`  
   - **Wrong:** `AAD Black/White Lists Best Practice Source Code Reference`；`Best practice source code reference for ...`；与 H1 不一致的残缺标题
 
@@ -256,8 +254,8 @@ Use clear product display names, e.g. `[Advanced Anti-DDoS Instance (huaweicloud
 ---
 ## 分类 index.md 规范（新建服务必遵；对齐 `anti-ddos/index.md`）
 
-> 权威对照：C 仓 `docs/{zh-cn|en-us}/best-practices/anti-ddos/index.md` 与 `templates/category_index.md`。  
-> **禁止**生成 AAD 曾出现的精简版（见文末「错误示例」）。
+> 权威对照：当前 **C 仓**内已有分类页（如 `docs/{zh-cn|en-us}/best-practices/anti-ddos/index.md`）与 C 仓 / 本仓库 `templates/category_index*.md`。  
+> **禁止**生成曾出现的精简版 index（见文末「错误示例」）。
 
 仅 **服务目录首次出现** 时 `create` 全文；已有服务只 **update**「最佳实践列表 / Best Practices List」中的一条（含链接 + 一句话说明）。
 
