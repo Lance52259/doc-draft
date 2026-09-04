@@ -146,13 +146,15 @@ func ApplyToFiles(files []model.DocFileChange, opt ApplyOptions) ([]model.DocFil
 		}
 		out = append(out, model.DocFileChange{Path: enIndexPath, Action: "create", Content: ensureTrailingNewline(enIdx)})
 		if enReadmeOK {
-			heading := opt.EnREADMEHeading
-			if heading == "" {
-				heading = fmt.Sprintf("%s Best Practices", label)
+			heading, blurb := ReadmeNavFromIndex(enIdx, EnUS, label)
+			if opt.EnREADMEHeading != "" {
+				heading = opt.EnREADMEHeading
 			}
-			blurb := opt.EnREADMEBlurb
-			if blurb == "" {
-				blurb = fmt.Sprintf("%s Terraform best practices.", label)
+			if opt.EnREADMEBlurb != "" {
+				blurb = opt.EnREADMEBlurb
+			}
+			if strings.TrimSpace(blurb) == "" {
+				return nil, fmt.Errorf("cannot excerpt EN README blurb from %s; index must include a ## What is … section with intro paragraph", enIndexPath)
 			}
 			patched, err := PatchBestPracticesREADME(enReadmeBase, opt.Service, heading, blurb, EnUS)
 			if err != nil {
@@ -197,13 +199,15 @@ func ApplyToFiles(files []model.DocFileChange, opt ApplyOptions) ([]model.DocFil
 		}
 		out = append(out, model.DocFileChange{Path: zhIndexPath, Action: "create", Content: ensureTrailingNewline(zhIdx)})
 		if zhReadmeOK {
-			heading := opt.ZhREADMEHeading
-			if heading == "" {
-				heading = fmt.Sprintf("%s最佳实践", label)
+			heading, blurb := ReadmeNavFromIndex(zhIdx, ZhCN, label)
+			if opt.ZhREADMEHeading != "" {
+				heading = opt.ZhREADMEHeading
 			}
-			blurb := opt.ZhREADMEBlurb
-			if blurb == "" {
-				blurb = fmt.Sprintf("%s 相关 Terraform 最佳实践。", label)
+			if opt.ZhREADMEBlurb != "" {
+				blurb = opt.ZhREADMEBlurb
+			}
+			if strings.TrimSpace(blurb) == "" {
+				return nil, fmt.Errorf("cannot excerpt ZH README blurb from %s; index must include a ## 什么是… section with intro paragraph", zhIndexPath)
 			}
 			patched, err := PatchBestPracticesREADME(zhReadmeBase, opt.Service, heading, blurb, ZhCN)
 			if err != nil {

@@ -27,8 +27,9 @@ const outputSchemaHint = `你必须只输出一个 JSON 对象（不要 Markdown
 2. content 为完整文档正文
 3. 不要在 JSON 外输出任何文字
 4. 必须同时 create 中文与英文实践正文（同一 {service}/{practice}）
-5. 新服务时还须 create 中英 index.md；SUMMARY/README 导航由编排层按「英文定序、中文跟随」补丁，禁止整文件重写 SUMMARY
-6. 严禁把 SUMMARY.md 重写成短目录或改掉「# Summary」标题`
+5. 新服务时还须 create 中英 index.md，且须达到 Skill「分类 index.md 规范」/Anti-DDoS 同等篇幅（What is≥2段、Overview两段套话、List含导语与条目说明、参考资料含 Terraform Official Documentation）；禁止精简版
+6. SUMMARY/README 导航由编排层按「英文定序、中文跟随」补丁，禁止整文件重写 SUMMARY
+7. 严禁把 SUMMARY.md 重写成短目录或改掉「# Summary」标题`
 
 // PromptTemplates assembles chat messages for generation.
 type PromptTemplates struct {
@@ -61,6 +62,10 @@ func (p *PromptTemplates) BuildMessages(in BuildMessagesInput) ([]provider.ChatM
 	if err != nil {
 		return nil, err
 	}
+	categoryZH, _ := p.LoadTemplate("category_index_template.md")
+	categoryEN, _ := p.LoadTemplate("category_index_template_en.md")
+	categoryBlock := formatCategoryTemplates(categoryZH, categoryEN)
+
 	refs, _ := in.Skill.ReadReferences(8)
 	var refParts []string
 	for _, r := range refs {
@@ -87,6 +92,9 @@ func (p *PromptTemplates) BuildMessages(in BuildMessagesInput) ([]provider.ChatM
 ## 文档模板（请在结构上对齐，可按源内容充实）
 %s
 
+## 分类 index.md 模板（新服务 create 时必须对齐 Anti-DDoS 篇幅；禁止精简版）
+%s
+
 ## 参考资料
 %s
 
@@ -95,12 +103,38 @@ func (p *PromptTemplates) BuildMessages(in BuildMessagesInput) ([]provider.ChatM
 
 ## 源最佳实践上下文
 %s
-`, in.Skill.Title, in.Skill.Body, in.Practice.PracticeID, in.TargetPath, in.DocsRoot, template, refText, baselineText, in.SourceContext)
+`, in.Skill.Title, in.Skill.Body, in.Practice.PracticeID, in.TargetPath, in.DocsRoot, template, categoryBlock, refText, baselineText, in.SourceContext)
 
 	return []provider.ChatMessage{
 		{Role: "system", Content: system},
 		{Role: "user", Content: user},
 	}, nil
+}
+
+func formatCategoryTemplates(zh, en string) string {
+	zh = strings.TrimSpace(zh)
+	en = strings.TrimSpace(en)
+	if zh == "" && en == "" {
+		return "(无本地分类模板；严格按 Skill「分类 index.md 规范」与 anti-ddos/index.md 生成。)"
+	}
+	var b strings.Builder
+	if zh != "" {
+		b.WriteString("### category_index_template.md (ZH)\n```markdown\n")
+		b.WriteString(zh)
+		if !strings.HasSuffix(zh, "\n") {
+			b.WriteByte('\n')
+		}
+		b.WriteString("```\n")
+	}
+	if en != "" {
+		b.WriteString("\n### category_index_template_en.md (EN)\n```markdown\n")
+		b.WriteString(en)
+		if !strings.HasSuffix(en, "\n") {
+			b.WriteByte('\n')
+		}
+		b.WriteString("```\n")
+	}
+	return b.String()
 }
 
 func formatNavBaselines(baselines map[string]string) string {

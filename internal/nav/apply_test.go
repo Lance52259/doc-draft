@@ -121,8 +121,24 @@ func TestApplyToFilesNewServiceBilingual(t *testing.T) {
 	files := []model.DocFileChange{
 		{Path: "docs/zh-cn/best-practices/aad/black_white_lists.md", Action: "create", Content: "# 部署黑白名单防护\n"},
 		{Path: "docs/en-us/best-practices/aad/black_white_lists.md", Action: "create", Content: "# Deploy Black White Lists\n"},
-		{Path: "docs/zh-cn/best-practices/aad/index.md", Action: "create", Content: "# 简介\n\n## 最佳实践列表\n\n"},
-		{Path: "docs/en-us/best-practices/aad/index.md", Action: "create", Content: "# Introduction\n\n## Best Practices List\n\n"},
+		{Path: "docs/zh-cn/best-practices/aad/index.md", Action: "create", Content: `# 简介
+
+## 什么是DDoS高防（AAD）
+
+DDoS高防（Advanced Anti-DDoS，AAD）是华为云提供的抗DDoS攻击防护服务，通过高防IP转发业务流量，清洗攻击流量，保障源站业务稳定运行。额外说明句子用于测试截断是否合理。
+
+## 最佳实践列表
+
+`},
+		{Path: "docs/en-us/best-practices/aad/index.md", Action: "create", Content: `# Introduction
+
+## What is Advanced Anti-DDoS (AAD)
+
+Advanced Anti-DDoS (AAD) is a DDoS attack protection service provided by Huawei Cloud. It forwards service traffic through Anti-DDoS IPs, cleans attack traffic, and ensures stable origin-site operations. Extra sentences make the opening paragraph long enough to exercise truncation when needed.
+
+## Best Practices List
+
+`},
 	}
 	out, err := nav.ApplyToFiles(files, nav.ApplyOptions{
 		CRepoRoot: root,
@@ -144,8 +160,17 @@ func TestApplyToFilesNewServiceBilingual(t *testing.T) {
 	if !strings.Contains(got["docs/en-us/best-practices/README.md"], "aad/index.md") {
 		t.Fatalf("en readme: %s", got["docs/en-us/best-practices/README.md"])
 	}
+	if !strings.Contains(got["docs/en-us/best-practices/README.md"], "Advanced Anti-DDoS (AAD) is a DDoS attack protection service") {
+		t.Fatalf("en readme should excerpt index What is section, got: %s", got["docs/en-us/best-practices/README.md"])
+	}
+	if strings.Contains(got["docs/en-us/best-practices/README.md"], "Terraform best practices") {
+		t.Fatalf("en readme must not use generic placeholder")
+	}
 	if !strings.Contains(got["docs/zh-cn/best-practices/README.md"], "aad/index.md") {
 		t.Fatalf("zh readme: %s", got["docs/zh-cn/best-practices/README.md"])
+	}
+	if !strings.Contains(got["docs/zh-cn/best-practices/README.md"], "DDoS高防（Advanced Anti-DDoS，AAD）是华为云提供的") {
+		t.Fatalf("zh readme should excerpt index 什么是 section, got: %s", got["docs/zh-cn/best-practices/README.md"])
 	}
 }
 
