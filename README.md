@@ -115,35 +115,45 @@ make run
 
 环境变量优先于 `configs/default_config.yaml`。完整示例见 [`.env.example`](./.env.example)。
 
+本地：写入 `.env` 即可。  
+GitHub Actions：本仓库工作流使用 `environment: Development`，请在 **Settings → Environments → Development** 中配置；工作流通过 `secrets.*` / `vars.*` 注入（见下表 **Actions 位置**）。
+
+| Actions 位置 | 含义 |
+|--------------|------|
+| **Secret** | Environment / Repo **Secrets**；工作流用 `secrets.NAME`（适合 token、API Key；勿把普通开关误放这里） |
+| **Variable** | Environment / Repo **Variables**；工作流用 `vars.NAME`（适合非敏感配置，如分支名、条数上限） |
+| **Secret 或 Variable** | 工作流优先读 Secret，缺省再用 Variable / 字面默认值（见各行说明） |
+| **仅本地** | Actions 未引用；只在 `.env` / YAML 中使用 |
+
 ### B 仓
 
-| 变量 | 默认 | 说明 |
-|------|------|------|
-| `B_REPO` | `huaweicloud/terraform-provider-huaweicloud` | 源仓库 |
-| `B_REPO_TOKEN` | _(空)_ | 读权限；公开仓可省略 |
-| `B_EXAMPLES_PATH` | `examples` | examples 根路径 |
-| `B_DEFAULT_BRANCH` | `master` | 分支 |
+| 变量 | 默认 | Actions 位置 | 说明 |
+|------|------|--------------|------|
+| `B_REPO` | `huaweicloud/terraform-provider-huaweicloud` | **Secret 或默认值**（`secrets.B_REPO`，未设则用内置默认） | 源仓库 `owner/name` |
+| `B_REPO_TOKEN` | _(空)_ | **Secret** | 读 B 仓；公开仓可省略 |
+| `B_EXAMPLES_PATH` | `examples` | **仅本地**（Actions 未单独注入） | examples 根路径 |
+| `B_DEFAULT_BRANCH` | `master` | **Variable**（`vars.B_DEFAULT_BRANCH`） | B 仓分支 |
 
 ### C 仓
 
-| 变量 | 默认 | 说明 |
-|------|------|------|
-| `C_REPO` | `Lance52259/hcbp-demo` | 文档 / PR 目标仓 |
-| `C_REPO_TOKEN` | _(空)_ | **写分支 + 开 PR（非 dry-run 必填）** |
-| `C_DOCS_ROOT` | `docs/zh-cn/best-practices` | 中文文档根（探测用） |
-| `C_DEFAULT_BRANCH` | `master` | PR base |
-| `C_SYNCED_MANIFEST` | `synced-practices.json` | 可选已对接清单 |
+| 变量 | 默认 | Actions 位置 | 说明 |
+|------|------|--------------|------|
+| `C_REPO` | `Lance52259/hcbp-demo` | **Secret 或默认值**（`secrets.C_REPO`，未设则用内置默认） | 文档 / PR 目标仓 |
+| `C_REPO_TOKEN` | _(空)_ | **Secret**（必填，非 dry-run） | 写分支 + 开 PR |
+| `C_DOCS_ROOT` | `docs/zh-cn/best-practices` | **仅本地** | 中文文档根（探测用） |
+| `C_DEFAULT_BRANCH` | `master` | **Variable**（`vars.C_DEFAULT_BRANCH`） | PR base |
+| `C_SYNCED_MANIFEST` | `synced-practices.json` | **仅本地** | 可选已对接清单 |
 
 ### AI 与运行时
 
-| 变量 | 默认 | 说明 |
-|------|------|------|
-| `AI_API_KEY` | — | DeepSeek API Key（生成必填） |
-| `AI_BASE_URL` | `https://api.deepseek.com` | API 地址 |
-| `AI_MODEL` | `deepseek-chat` | 模型 |
-| `DRY_RUN` | `false` | `true` 时不 push / 不开真实 PR |
-| `MAX_PRACTICES` | `0`（不限制） | 单次最多处理条数；联调建议 `1` |
-| `SKILL_ID` | `best-practice-doc` | Skill 目录名 |
+| 变量 | 默认 | Actions 位置 | 说明 |
+|------|------|--------------|------|
+| `AI_API_KEY` | — | **Secret**（必填） | DeepSeek API Key |
+| `AI_BASE_URL` | `https://api.deepseek.com` | **Variable**（`vars.AI_BASE_URL`） | API 地址 |
+| `AI_MODEL` | `deepseek-chat` | **Variable**（`vars.AI_MODEL`） | 模型名 |
+| `DRY_RUN` | `false` | workflow 输入 / 本地 `.env` | `true` 时不 push / 不开真实 PR |
+| `MAX_PRACTICES` | 本地 `0`（不限制）；Actions 未配置时回退 `1` | **Variable**（`vars.MAX_PRACTICES`） | 单次最多处理条数。**必须配在 Variables，不要放进 Secrets**；放错则 `vars` 读不到，会一直用默认 `1` |
+| `SKILL_ID` | `best-practice-doc` | **Variable**（`vars.SKILL_ID`） | Skill 目录名 |
 
 路径映射（B `examples` → C 服务目录 / 文件名）见 [`configs/practice_mapping.yaml`](./configs/practice_mapping.yaml)。  
 文档生成规则见 [`skills/best-practice-doc/SKILL.md`](./skills/best-practice-doc/SKILL.md)。
@@ -177,8 +187,13 @@ doc-craft run [--practice ID] [--dry-run=true|false] [--no-refresh]
 
 Secrets / Variables 建议放在 **Environment `Development`**（工作流已声明 `environment: Development`）：
 
-- 必填：`AI_API_KEY`、`C_REPO_TOKEN`
-- 可选：`B_REPO`、`C_REPO`、`MAX_PRACTICES`（Actions 默认常为 `1`）等
+| 类型 | 配置项 |
+|------|--------|
+| **Secrets（必填）** | `AI_API_KEY`、`C_REPO_TOKEN` |
+| **Secrets（可选）** | `B_REPO_TOKEN`；覆盖默认仓时可用 `B_REPO`、`C_REPO` |
+| **Variables（可选）** | `MAX_PRACTICES`、`B_DEFAULT_BRANCH`、`C_DEFAULT_BRANCH`、`AI_BASE_URL`、`AI_MODEL`、`SKILL_ID` |
+
+`MAX_PRACTICES` 等非敏感项请放 **Variables**；若放进 Secrets，工作流的 `vars.MAX_PRACTICES` 读不到，会回退为 `1`。
 
 单元测试工作流：[`test-workflow.yml`](./.github/workflows/test-workflow.yml)（push / PR）。
 
