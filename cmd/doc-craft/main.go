@@ -268,12 +268,14 @@ func runPipeline(args []string) int {
 		title := commitTitle(s, item)
 		tpl, _ := gitops.LoadPRBodyTemplate(s.RepoRoot)
 		body := gitops.BuildPRBody(gitops.PRBodyInput{
-			Practice: item,
-			Result:   result,
-			BRepo:    s.BRepo,
-			BSHA:     detection.BCommit,
-			SkillID:  s.SkillID,
-			Template: tpl,
+			Practice:   item,
+			Result:     result,
+			BRepo:      s.BRepo,
+			CRepo:      s.CRepo,
+			BSHA:       detection.BCommit,
+			SkillID:    s.SkillID,
+			AIProvider: aiProviderLabel(s.AIModel),
+			Template:   tpl,
 		})
 
 		if _, err := op.ApplyAndPush(repoCtx.C.LocalPath, branch, s.CDefaultBranch, result, title, s.DryRun); err != nil {
@@ -399,6 +401,18 @@ func commitTitle(s *config.Settings, p model.Practice) string {
 		slug = p.Slug()
 	}
 	return fmt.Sprintf("docs(%s): support new best practice for %s", service, model.SimplePracticeTitle(service, slug))
+}
+
+func aiProviderLabel(modelName string) string {
+	m := strings.ToLower(strings.TrimSpace(modelName))
+	switch {
+	case m == "":
+		return "AI"
+	case strings.Contains(m, "deepseek"):
+		return "DeepSeek"
+	default:
+		return modelName
+	}
 }
 
 func contains(list []string, v string) bool {
