@@ -1,18 +1,19 @@
-package monitor_test
+package monitor
 
-import (
-	"strings"
-	"testing"
+import "testing"
 
-	"github.com/Lance52259/doc-draft/internal/monitor"
-)
-
-func TestToHTTPSURL(t *testing.T) {
-	if got := monitor.ToHTTPSURL("acme/docs", ""); got != "https://github.com/acme/docs.git" {
-		t.Fatalf("got %s", got)
+func TestWorktreeDirName(t *testing.T) {
+	cases := []struct {
+		role, repo, want string
+	}{
+		{"b", "huaweicloud/terraform-provider-huaweicloud", "b-huaweicloud-terraform-provider-huaweicloud"},
+		{"c", "Lance52259/hcbp-demo", "c-Lance52259-hcbp-demo"},
+		{"b", "https://github.com/org/repo.git", "b-org-repo"},
 	}
-	got := monitor.ToHTTPSURL("acme/docs", "tok")
-	if !strings.Contains(got, "x-access-token:tok@") {
-		t.Fatalf("got %s", got)
+	for _, tc := range cases {
+		got := worktreeDirName(tc.role, tc.repo)
+		if got != tc.want {
+			t.Fatalf("role=%s repo=%s got %q want %q", tc.role, tc.repo, got, tc.want)
+		}
 	}
 }

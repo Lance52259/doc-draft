@@ -382,7 +382,7 @@ func filterOpenPRPractices(s *config.Settings, detection *model.DetectionResult)
 	detection.NewPractices = keep
 	if len(skipped) > 0 {
 		detection.SkippedOpenPR = append(detection.SkippedOpenPR, skipped...)
-		fmt.Printf("Skipped %d practice(s) with open PR on C\n", len(skipped))
+		fmt.Printf("Skipped %d practice(s) with open PR on %s\n", len(skipped), s.CRepo)
 	}
 	return nil
 }
